@@ -330,7 +330,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || resolve(R
     res.setHeader('X-Frame-Options','DENY');
     res.setHeader('Referrer-Policy','no-referrer');
     res.setHeader('Permissions-Policy','camera=(), geolocation=(), microphone=(self)');
-    res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
     try {
       if(demo) {
         const hostname=new URL(`http://${req.headers.host || ''}`).hostname;
@@ -355,6 +355,7 @@ export function createApp({ database = resolve(process.env.DATA_DIR || resolve(R
           assert(body && typeof body==='object' && !Array.isArray(body),'So‘rov obyekti kerak.');
         }
         const result=await handleApi(req,res,path,getUser(req),body);
+        if(result===undefined && !res.writableEnded) throw new AppError(404,'API marshruti topilmadi.');
         if(!res.writableEnded) res.end(JSON.stringify(result));
         return;
       }

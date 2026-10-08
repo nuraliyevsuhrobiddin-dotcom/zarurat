@@ -4,6 +4,8 @@
   "outputDirectory": "public",
   "framework": null,
   "routes": [
+    { "src": "/api/(.*)", "dest": "/api/proxy?path=$1" },
+    { "handle": "filesystem" },
     { "src": "/images/(.*)", "dest": "/images/$1" },
     { "src": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|json|woff|woff2))", "dest": "/$1" },
     { "src": "/", "dest": "/index.html" },

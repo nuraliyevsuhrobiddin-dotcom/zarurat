@@ -2,6 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import handler from '../api/proxy.mjs';
+import { readFileSync } from 'node:fs';
+
+test('Vercel routes API requests to the proxy before the static HTML fallback', () => {
+  const config=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
+  const first=config.routes[0];
+  const match=new RegExp(`^${first.src}$`).exec('/api/auth/login');
+  assert.ok(match);
+  assert.equal(first.dest.replace('$1',match[1]),'/api/proxy?path=auth/login');
+  assert.equal(config.routes[1].handle,'filesystem');
+});
 
 test('Vercel proxy preserves login body, origin, cookies and upstream errors', async () => {
   const originalFetch = globalThis.fetch;

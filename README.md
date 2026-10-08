@@ -1,5 +1,9 @@
 # ZARURIYAT
 
+Tekshiruv va xavfsizlik tuzatishlari: [docs/TEKSHIRUV.md](docs/TEKSHIRUV.md).
+Faol baza Node.js serveridagi SQLite; brauzerdan Supabase’ga bevosita kirish yopilgan.
+Eski Supabase bazasidagi ma’lumotlar avtomatik ko‘chirilmaydi.
+
 Sozlamalar va integratsiyalar: [docs/SOZLASH.md](docs/SOZLASH.md). Vercel va VPS’ga joylash: [deploy/SERVERGA-JOYLASH.md](deploy/SERVERGA-JOYLASH.md).
 
 Muammoni murojaatdan natijagacha boshqaradigan, o‘zbek lotin yozuvidagi veb-platformaning ishlaydigan dastlabki versiyasi. `зарурият.docx` asosida yaratildi. Mijoz sayti, operator, hamkor va rahbar kabinetlari bitta ilovada.

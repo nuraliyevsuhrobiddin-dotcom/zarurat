@@ -1,4 +1,4 @@
-﻿import { supabaseApi, isSupabaseConfigured } from './supabase-api.js';
+﻿import { api } from './api.js';
 const $ = (s, el = document) => el.querySelector(s);
 const app = $('#app'), modal = $('#modal');
 const state = { config: null, user: null, cases: [], partners: [], clients: [], team: [], packages: [], stats: null, notifications: [], filters: { search: '', status: '', category: '', overdue: false, tab: 'all' }, script: localStorage.getItem('zar_script') || 'lat' };
@@ -50,9 +50,6 @@ const selectField = (name, label, opts, attrs = '') => `<div class="field"><labe
 const textareaField = (name, label, value = '', attrs = '', full = true) => `<div class="field${full ? ' full' : ''}"><label for="${name}">${label}</label><textarea name="${name}" id="${name}" ${attrs}>${esc(value)}</textarea></div>`;
 const formError = '<div class="form-error" role="alert"></div>';
 let routeVersion = 0, lastFocus = null, recording = null, voiceFile = null, toastTimer;
-async function api(path, body, method) {
- return await supabaseApi(path, body, method);
-}
 function toast(text) { $('#toast').textContent=text; $('#toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4200); }
 function modalOpen(title, subtitle, content) { if(!modal.open) lastFocus=document.activeElement; modal.innerHTML=`<header class="modal-head"><div><h2 id="modal-title">${esc(title)}</h2>${subtitle ? `<p>${esc(subtitle)}</p>`:''}</div><button class="icon-btn" data-action="close" aria-label="Yopish">${icon('close')}</button></header><div class="modal-body">${content}</div>`; if(!modal.open) modal.showModal(); modal.scrollTop=0; }
 function stopRecording() { if(recording?.state==='recording') recording.stop(); recording?.stream?.getTracks().forEach(t=>t.stop()); recording=null; }
@@ -70,12 +67,28 @@ function landing() {
  <section class="how-section" id="how"><div class="container section"><div class="section-heading"><div><div class="eyebrow">02 / ${state.script==='cyr'?'Қандай ишлайди':'Qanday ishlaydi'}</div><h2>${state.script==='cyr'?'Мурожаатдан ечимгача.':'Murojaatdan yechimgacha.'}</h2></div><p>${state.script==='cyr'?'Сиз учун тушунарли, биз учун масъулиятли тўрт қадам.':'Siz uchun tushunarli, biz uchun mas’uliyatli to‘rt qadam.'}</p></div><div class="how-split-layout"><div class="how-media-panel"><div class="how-img-container"><img src="/images/how.jpg" alt="Qanday ishlaydi" class="how-main-img" width="520" height="420" loading="lazy"><div class="how-glass-badge"><span class="hgb-icon">${icon('heart')}</span><div><b>${state.script==='cyr'?'Битта мурожаат — яхлит ечим':'Bitta murojaat — yaxlit yechim'}</b><p>${state.script==='cyr'?'Мутахассисларни ўзингиз изламайсиз':'Mutaxassislarni o‘zingiz izlamaysiz'}</p></div></div></div></div><div class="steps-timeline"><article class="timeline-step"><span class="step-no">01</span><div class="step-body"><h3>${state.script==='cyr'?'Муаммоингизни айтинг':'Muammoingizni ayting'}</h3><p>${state.script==='cyr'?'Қисқа шаклни тўлдиринг. Истасангиз овозли хабар, расм ёки ҳужжат бириктиринг.':'Qisqa shaklni to‘ldiring. Istasangiz ovozli xabar, rasm yoki hujjat biriktiring.'}</p></div></article><article class="timeline-step"><span class="step-no">02</span><div class="step-body"><h3>${state.script==='cyr'?'Бирга аниқлаштирамиз':'Birga aniqlashtiramiz'}</h3><p>${state.script==='cyr'?'Шахсий координатор боғланиб, вазиятни ўрганади ва керакли хизматларни белгилайди.':'Shaxsiy koordinator bog‘lanib, vaziyatni o‘rganadi va kerakli xizmatlarni belgilaydi.'}</p></div></article><article class="timeline-step"><span class="step-no">03</span><div class="step-body"><h3>${state.script==='cyr'?'Хизматни келишамиз':'Xizmatni kelishamiz'}</h3><p>${state.script==='cyr'?'Текширилган ҳамкор, аниқ ва қулай вақт ҳамда шаффоф нарх сиз билан келишилади.':'Tekshirilgan hamkor, aniq va qulay vaqt hamda shaffof narx siz bilan kelishiladi.'}</p></div></article><article class="timeline-step"><span class="step-no">04</span><div class="step-body"><h3>${state.script==='cyr'?'Натижани назорат қиласиз':'Natijani nazorat qilasiz'}</h3><p>${state.script==='cyr'?'Ишни онлайн кузатинг, натижани қабул қилинг ва хизмат сифатини баҳоланг.':'Ishni onlayn kuzating, natijani qabul qiling va xizmat sifatini baholang.'}</p></div></article></div></div></div></section>
  <div class="container"><section class="section family-section" id="family"><div><div class="eyebrow">03 / ${state.script==='cyr'?'Оила учун':'Oila uchun'}</div><h2>${state.script==='cyr'?'Бутун оилангиз учун бир таянч.':'Butun oilangiz uchun bir tayanch.'}</h2><p>${state.script==='cyr'?'Доимий ёрдам керакми? Оила аъзолари ва эҳтиёжларингизга мос хизматлар пакетини бирга шакллантирамиз.':'Doimiy yordam kerakmi? Oila a’zolari va ehtiyojlaringizga mos xizmatlar paketini birga shakllantiramiz.'}</p></div><div class="package-cards">${[['Start',state.script==='cyr'?'Кундалик алоҳида эҳтиёжлар учун.':'Kundalik alohida ehtiyojlar uchun.'],['Komfort',state.script==='cyr'?'Оила юмушлари ва мунтазам ёрдам учун.':'Oila yumushlari va muntazam yordam uchun.'],['Premium',state.script==='cyr'?'Кенгроқ эҳтиёжлар ва комплекс мувофиқлаштириш учун.':'Kengroq ehtiyojlar va kompleks muvofiqlashtirish uchun.']].map(([name,desc],i)=>`<article class="package-card ${i===1?'featured':''}">${i===1?`<div class="popular-tag">${state.script==='cyr'?'Энг оммабоп':'Eng ommabop'}</div>`:''}<span class="label">${state.script==='cyr'?'Оила пакети':'Oila paketi'}</span><h3>${name}</h3><p>${desc}</p><div class="package-line"></div><small>${state.script==='cyr'?'Таркиб ва шартлар индивидуал келишилади':'Tarkib va shartlar individual kelishiladi'}</small><button class="text-btn" data-action="request" data-package="${name}">${state.script==='cyr'?'Батафсил сўраш':'Batafsil so‘rash'} ${icon('arrow')}</button></article>`).join('')}</div></section><section class="contact-band"><div><h2>${state.script==='cyr'?'Ҳар бир ечим суҳбатдан бошланади.':'Har bir yechim suhbatdan boshlanadi.'}</h2><p>${state.script==='cyr'?'Муаммоингиз катта ёки кичик бўлишидан қатъи назар, бизга айтинг.':'Muammoingiz katta yoki kichik bo‘lishidan qat’i nazar, bizga ayting.'}</p></div><button class="btn prominent-contact-btn" data-action="request">${icon('heart')} ${state.script==='cyr'?'Мурожаат қолдириш':'Murojaat qoldirish'} ${icon('arrow')}</button></section></div></main><footer class="site-footer"><div class="container"><div class="footer-inner">${brand()}<div class="footer-links"><button data-action="privacy">${state.script==='cyr'?'Махфийлик ва розилик':'Maxfiylik va rozilik'}</button><button data-action="track">${state.script==='cyr'?'Мурожаатни кузатиш':'Murojaatni kuzatish'}</button><span>${state.script==='cyr'?'Инсоний ёндашув. Шаффоф жараён.':'Insoniy yondashuv. Shaffof jarayon.'}</span></div></div><p class="footer-bottom">© ${new Date().getFullYear()} ZARURIYAT. ${state.script==='cyr'?'Онлайн хизматларни мувофиқлаштириш платформаси. Давлат хизмати эмас. Шошилинч ёрдам учун тегишли фавқулодда хизматга (102, 103) мурожаат қилинг.':'Onlayn xizmatlarni muvofiqlashtirish platformasi. Davlat xizmati emas. Shoshilinch yordam uchun tegishli favqulodda xizmatga (102, 103) murojaat qiling.'}</p></div></footer>`;
 }
+const aiKeywords = [
+  { id: 'legal', name: 'Huquqiy yordam', words: ['sud', 'advokat', 'shartnoma', 'meros', 'aliment', 'huquq', 'ariza', 'notarius', 'prokuratura', 'sudya', 'qonun', 'yurist'] },
+  { id: 'medical', name: 'Tibbiy xizmat', words: ['shifokor', 'doktor', 'davolanish', 'klinika', 'dori', 'kasal', 'operatsiya', 'tibbiy', 'analiz', 'diagnoz', 'tez yordam'] },
+  { id: 'psychology', name: 'Psixolog', words: ['psixolog', 'stress', 'depressiya', 'tushkunlik', 'asab', 'ruhiy', 'xavotir', 'vahima'] },
+  { id: 'children', name: 'Bolalar', words: ['bola', 'chaqaloq', 'maktab', 'bogcha', 'tarbiya', 'bolalar'] },
+  { id: 'elderly', name: 'Keksalar', words: ['keksa', 'qariya', 'pensioner', 'pensiya', 'otam', 'onam', 'yoshi ulug'] },
+  { id: 'women', name: 'Ayollar', words: ['ayol', 'onalar', 'homilador', 'ayollar', 'tugruq'] },
+  { id: 'business', name: 'Tadbirkorlik', words: ['biznes', 'tadbirkor', 'mchj', 'firma', 'soliq', 'buxgalter', 'litsenziya'] },
+  { id: 'bank', name: 'Bank / kredit', words: ['bank', 'kredit', 'ipoteka', 'foiz', 'plastik', 'karta', 'qarz', 'omonat'] },
+  { id: 'documents', name: 'Hujjatlar', words: ['hujjat', 'pasport', 'propiska', 'metrika', 'spravka', 'guvohnoma', 'davlat xizmati', 'kadastr'] },
+  { id: 'nanny', name: 'Enaga', words: ['enaga', 'nyanya', 'enagachilik'] },
+  { id: 'care', name: 'Qarovchi', words: ['qarovchi', 'patronaj', 'parvarish', 'yordamchi'] },
+  { id: 'cleaning', name: 'Klining', words: ['uborka', 'tozalash', 'klining', 'yuvish', 'tozalik'] },
+  { id: 'repair', name: 'Usta', words: ['usta', 'remont', 'santexnik', 'elektrik', 'molyar', 'tuzatish', 'tamirlash'] }
+];
+
 function requestDialog(categoryId='',packageName='',isUnknown=false) {
  voiceFile=null;
  const isCyr=state.script==='cyr',isSpecial=isUnknown||categoryId==='other';
  const title=isSpecial?(isCyr?'«Муаммомни билмайман, ёрдам керак»':'«Muammomni bilmayman, yordam kerak»'):(isCyr?'Сизни тинглашга тайёрмиз':'Sizni tinglashga tayyormiz');
  const subtitle=isSpecial?(isCyr?'Вазиятингизни ўз сўзингиз билан ёзинг — координаторимиз барча керакли мутахассис ва хизматларни ўзи аниқлаб беради.':'Vaziyatingizni erkin bayon qiling — koordinatorimiz barcha kerakli mutaxassis va xizmatlarni o‘zi aniqlashtirib beradi.'):(isCyr?'Муаммоингизни айтинг — координатор кейинги қадамларни сиз билан келишади.':'Muammoingizni ayting — koordinator keyingi qadamlarni siz bilan kelishadi.');
- modalOpen(title,subtitle,`<form id="request-form">${formError}${isSpecial?`<div class="notice" style="background:#eef5e6;border-color:#b8d7a4;color:#1c4819;margin-bottom:18px"><strong>${icon('heart')} ${isCyr?'Хавотир олманг!':'Xavotir olmang!'}</strong> ${isCyr?'Қайси соҳа ёки мутахассис кераклигини аниқ билмасангиз ҳам, нима юз берганини ўз сўзларингиз билан қисқача ёзинг. Координаторимиз сиз билан боғланиб, тўғри ечимни ташкил қилади.':'Qaysi soha yoki mutaxassis kerakligini aniq bilmasangiz ham, nima yuz berganini o‘z so‘zlaringiz bilan qisqacha yozing. Koordinatorimiz siz bilan bog‘lanib, to‘g‘ri yechimni tashkil qiladi.'}</div>`:''}<div class="form-grid">${field('name',isCyr?'Исмингиз':'Ismingiz','text',state.user?.name||'','required maxlength="100" autocomplete="name" placeholder="'+(isCyr?'Исм ва фамилия':'Ism va familiya')+'"')}${field('phone',isCyr?'Телефон рақамингиз':'Telefon raqamingiz','tel',state.user?.phone||'+998','required inputmode="tel" autocomplete="tel" placeholder="+998 90 123 45 67"')}${selectField('region',isCyr?'Ҳудудингиз':'Hududingiz',options(state.config.regions,'',isCyr?'Ҳудудни танланг':'Hududni tanlang'),'required')}${selectField('category',isCyr?'Хизмат йўналиши':'Xizmat yo‘nalishi',options(state.config.categories,categoryId||(isSpecial?'other':''),isCyr?'Йўналишни танланг':'Yo‘nalishni tanlang'),'required')}${textareaField('description',isCyr?'Қандай ёрдам керак?':'Qanday yordam kerak?',packageName?(isCyr?`${packageName} оила пакети ҳақида маълумот ва маслаҳат керак.`:`${packageName} oila paketi haqida ma’lumot va maslahat kerak.`):'','required minlength="10" maxlength="5000" placeholder="'+(isSpecial?(isCyr?'Вазиятингизни эркин ёзинг: кимга, нима бўлди ва қандай ёрдам зарур?':'Vaziyatingizni erkin yozing: kimga, nima bo‘ldi va qanday yordam zarur?'):(isCyr?'Вазиятингизни қисқача ёзинг. Ким учун ва қандай ёрдам керак?':'Vaziyatingizni qisqacha yozing. Kim uchun va qanday yordam kerak?'))+'"')}${field('preferredTime',isCyr?'Боғланиш учун қулай вақт <small>· ихтиёрий</small>':'Bog‘lanish uchun qulay vaqt <small>· ixtiyoriy</small>','text','','maxlength="150" placeholder="'+(isCyr?'Масалан, иш кунлари соат 14:00 дан кейин':'Masalan, ish kunlari soat 14:00 dan keyin')+'"',true)}<div class="field full"><label for="attachments">${isCyr?'Қўшимча файллар <small>· ихтиёрий</small>':'Qo‘shimcha fayllar <small>· ixtiyoriy</small>'}</label><input type="file" id="attachments" name="attachments" multiple accept="image/jpeg,image/png,image/webp,application/pdf,audio/webm,audio/ogg,audio/mp4,audio/mpeg,audio/wav"><span class="field-help">${isCyr?'Жами 3 тагача файл. Жами ҳажми 2.8 МБ гача. JPG, PNG, WebP, PDF ёки аудио.':'Jami 3 tagacha fayl. Jami hajmi 2.8 MB gacha. JPG, PNG, WebP, PDF yoki audio.'}</span><div class="record-row"><button type="button" class="btn outline small" data-action="record">${icon('mic')} ${isCyr?'Овозли хабар ёзиш':'Ovozli xabar yozish'}</button><span id="record-status" aria-live="polite"></span></div></div></div><label class="check-label"><input type="checkbox" name="consent" required><span>${isCyr?'Мурожаатимни кўриб чиқиш, мен билан боғланиш ва зарур маълумотларни хизматни бажарувчи ҳамкорга тақдим этиш учун шахсий маълумотларим қайта ишланишига розиман.':'Murojaatimni ko‘rib chiqish, men bilan bog‘lanish va zarur ma’lumotlarni xizmatni bajaruvchi hamkorga taqdim etish uchun shaxsiy ma’lumotlarim qayta ishlanishiga roziman.'}</span></label><div class="form-actions"><span class="muted">${isCyr?'Майдонларни текшириб, мурожаатни юборинг.':'Maydonlarni tekshirib, murojaatni yuboring.'}</span><button type="submit" class="btn">${isCyr?'Мурожаатни юбориш':'Murojaatni yuborish'} ${icon('arrow')}</button></div></form>`);
+ modalOpen(title,subtitle,`<form id="request-form">${formError}${isSpecial?`<div class="notice" style="background:#eef5e6;border-color:#b8d7a4;color:#1c4819;margin-bottom:18px"><strong>${icon('heart')} ${isCyr?'Хавотир олманг!':'Xavotir olmang!'}</strong> ${isCyr?'Қайси соҳа ёки мутахассис кераклигини аниқ билмасангиз ҳам, нима юз берганини ўз сўзларингиз билан қисқача ёзинг. Координаторимиз сиз билан боғланиб, тўғри ечимни ташкил қилади.':'Qaysi soha yoki mutaxassis kerakligini aniq bilmasangiz ham, nima yuz berganini o‘z so‘zlaringiz bilan qisqacha yozing. Koordinatorimiz siz bilan bog‘lanib, to‘g‘ri yechimni tashkil qiladi.'}</div>`:''}<div class="form-grid">${field('name',isCyr?'Исмингиз':'Ismingiz','text',state.user?.name||'','required maxlength="100" autocomplete="name" placeholder="'+(isCyr?'Исм ва фамилия':'Ism va familiya')+'"')}${field('phone',isCyr?'Телефон рақамингиз':'Telefon raqamingiz','tel',state.user?.phone||'+998','required inputmode="tel" autocomplete="tel" placeholder="+998 90 123 45 67"')}${selectField('region',isCyr?'Ҳудудингиз':'Hududingiz',options(state.config.regions,'',isCyr?'Ҳудудни танланг':'Hududni tanlang'),'required')}${selectField('category',isCyr?'Хизмат йўналиши':'Xizmat yo‘nalishi',options(state.config.categories,categoryId||(isSpecial?'other':''),isCyr?'Йўналишни танланг':'Yo‘nalishni tanlang'),'required')}${textareaField('description',isCyr?'Қандай ёрдам керак?':'Qanday yordam kerak?',packageName?(isCyr?`${packageName} оила пакети ҳақида маълумот ва маслаҳат керак.`:`${packageName} oila paketi haqida ma’lumot va maslahat kerak.`):'','required minlength="10" maxlength="5000" placeholder="'+(isSpecial?(isCyr?'Вазиятингизни эркин ёзинг: кимга, нима бўлди ва қандай ёрдам зарур?':'Vaziyatingizni erkin yozing: kimga, nima bo‘ldi va qanday yordam zarur?'):(isCyr?'Вазиятингизни қисқача ёзинг. Ким учун ва қандай ёрдам керак?':'Vaziyatingizni qisqacha yozing. Kim uchun va qanday yordam kerak?'))+'"')}<div id="ai-suggestion-box"></div>${field('preferredTime',isCyr?'Боғланиш учун қулай вақт <small>· ихтиёрий</small>':'Bog‘lanish uchun qulay vaqt <small>· ixtiyoriy</small>','text','','maxlength="150" placeholder="'+(isCyr?'Масалан, иш кунлари соат 14:00 дан кейин':'Masalan, ish kunlari soat 14:00 dan keyin')+'"',true)}<div class="field full"><label for="attachments">${isCyr?'Қўшимча файллар <small>· ихтиёрий</small>':'Qo‘shimcha fayllar <small>· ixtiyoriy</small>'}</label><input type="file" id="attachments" name="attachments" multiple accept="image/jpeg,image/png,image/webp,application/pdf,audio/webm,audio/ogg,audio/mp4,audio/mpeg,audio/wav"><span class="field-help">${isCyr?'Жами 3 тагача файл. Жами ҳажми 2.8 МБ гача. JPG, PNG, WebP, PDF ёки аудио.':'Jami 3 tagacha fayl. Jami hajmi 2.8 MB gacha. JPG, PNG, WebP, PDF yoki audio.'}</span><div class="record-row"><button type="button" class="btn outline small" data-action="record">${icon('mic')} ${isCyr?'Овозли хабар ёзиш':'Ovozli xabar yozish'}</button><span id="record-status" aria-live="polite"></span></div></div></div><label class="check-label"><input type="checkbox" name="consent" required><span>${isCyr?'Мурожаатимни кўриб чиқиш, мен билан боғланиш ва зарур маълумотларни хизматни бажарувчи ҳамкорга тақдим этиш учун шахсий маълумотларим қайта ишланишига розиман.':'Murojaatimni ko‘rib chiqish, men bilan bog‘lanish va zarur ma’lumotlarni xizmatni bajaruvchi hamkorga taqdim etish uchun shaxsiy ma’lumotlarim qayta ishlanishiga roziman.'}</span></label><div class="form-actions"><span class="muted">${isCyr?'Майдонларни текшириб, мурожаатни юборинг.':'Maydonlarni tekshirib, murojaatni yuboring.'}</span><button type="submit" class="btn">${isCyr?'Мурожаатни юбориш':'Murojaatni yuborish'} ${icon('arrow')}</button></div></form>`);
 }
 function successDialog(result) {
  const c=result.case,token=result.trackingToken,isCyr=state.script==='cyr';
@@ -87,7 +100,125 @@ function trackingDialog(number='',token='') {
 }
 function loginDialog(register=false) {
  const isCyr=state.script==='cyr';
- modalOpen(register?(isCyr?'Шахсий кабинет яратинг':'Shaxsiy kabinet yarating'):(isCyr?'Кабинетга кириш':'Kabinetga kirish'),register?(isCyr?'Мурожаатларингиз ва оилавий пакетингиз бир жойда.':'Murojaatlaringiz va oilaviy paketingiz bir joyda.'):(isCyr?'Мурожаатлар ва хизматларни давом эттиринг.':'Murojaatlar va xizmatlarni davom ettiring.'),`<form id="${register?'register':'login'}-form">${formError}<div class="form-grid">${register?field('name',isCyr?'Исм ва фамилия':'Ism va familiya','text','','required maxlength="100" autocomplete="name"',true)+field('phone',isCyr?'Телефон рақами':'Telefon raqami','tel','+998','required autocomplete="tel"',true):field('login',isCyr?'Телефон рақами ёки логин':'Telefon raqami yoki login','text','','required autocomplete="username" placeholder="+998 90 123 45 67"',true)}${field('password',isCyr?'Парол':'Parol','password','',`required ${register?'minlength="10"':''} autocomplete="${register?'new-password':'current-password'}" ${register?`placeholder="${isCyr?'Камида 10 та белги':'Kamida 10 ta belgi'}"`:''}`,true)}</div>${register?`<label class="check-label"><input type="checkbox" name="consent" required><span>${isCyr?'Кабинет юритиш ва хизматлар бўйича боғланиш учун шахсий маълумотларим қайта ишланишига розиман.':'Kabinet yuritish va xizmatlar bo‘yicha bog‘lanish uchun shaxsiy ma’lumotlarim qayta ishlanishiga roziman.'}</span></label>`:''}<div class="form-actions"><button type="submit" class="btn">${register?(isCyr?'Рўйхатдан ўтиш':'Ro‘yxatdan o‘tish'):(isCyr?'Кириш':'Kirish')} ${icon('arrow')}</button></div></form><div class="auth-switch">${register?(isCyr?'Кабинетингиз борми?':'Kabinet bormi?'):(isCyr?'Ҳали кабинет йўқми?':'Hali kabinet yo‘qmi?')} <button class="text-btn" data-action="${register?'login':'register'}">${register?(isCyr?'Кириш':'Kirish'):(isCyr?'Рўйхатдан ўтиш':'Ro‘yxatdan o‘tish')}</button></div>`);
+ const tab1=isCyr?'Кириш':'Kirish';
+ const tab2=isCyr?'Рўйхатдан ўтиш':"Ro'yxatdan o'tish";
+ const regHtml=`
+  <div class="auth-brand-row">
+   <div class="auth-logo-icon"><span>✳</span></div>
+   <div>
+    <div class="auth-logo-name">ZARURIYAT</div>
+    <div class="auth-logo-sub">${isCyr?'Шахсий кабинет':'Shaxsiy kabinet'}</div>
+   </div>
+  </div>
+  <div class="auth-tabs" aria-label="${isCyr?'Кабинетга кириш':'Kabinetga kirish'}">
+   <button class="auth-tab${!register?' active':''}" aria-pressed="${!register}" data-action="login" type="button">${tab1}</button>
+   <button class="auth-tab${register?' active':''}" aria-pressed="${register}" data-action="register" type="button">${tab2}</button>
+   <span class="auth-tab-slider" style="transform:translateX(${register?'100%':'0%'})"></span>
+  </div>
+  <form id="${register?'register':'login'}-form" class="auth-form">
+   ${formError}
+   ${register?`
+    <div class="auth-field">
+     <label>${isCyr?'Исм ва фамилия':'Ism va familiya'}</label>
+     <div class="auth-input-wrap">
+      <svg viewBox="0 0 24 24" class="auth-field-icon"><circle cx="12" cy="8" r="4"/><path d="M20 21v-1a8 8 0 0 0-16 0v1"/></svg>
+      <input name="name" type="text" autocomplete="name" required maxlength="100" placeholder="Sardor Aliyev">
+     </div>
+    </div>
+    <div class="auth-field">
+     <label>${isCyr?'Телефон рақами':'Telefon raqami'}</label>
+     <div class="auth-input-wrap">
+      <svg viewBox="0 0 24 24" class="auth-field-icon"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.14 12 19.79 19.79 0 0 1 1.08 3.38 2 2 0 0 1 3.05 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 16z"/></svg>
+      <input name="phone" type="tel" autocomplete="tel" required placeholder="+998 90 123 45 67" value="+998" inputmode="tel">
+     </div>
+    </div>
+    <div class="auth-field">
+     <label>${isCyr?'Parol':'Parol'} <small class="auth-label-note">(kamida 10 belgi)</small></label>
+     <div class="auth-input-wrap">
+      <svg viewBox="0 0 24 24" class="auth-field-icon"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <input name="password" id="auth-pwd" type="password" autocomplete="new-password" required minlength="10" placeholder="Kuchli parol kiriting">
+      <button type="button" class="auth-eye" id="auth-eye-btn" aria-label="Ko'rsatish">
+       <svg viewBox="0 0 24 24"><path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+     </div>
+     <div class="auth-strength-bar"><div class="auth-strength-fill" id="auth-strength-fill"></div></div>
+     <span class="auth-strength-label" id="auth-strength-label"></span>
+    </div>
+    <label class="auth-consent">
+     <input type="checkbox" name="consent" required>
+     <span>Shaxsiy ma'lumotlarim xizmat ko'rsatish maqsadida qayta ishlanishiga roziman.</span>
+    </label>
+    <button type="submit" class="auth-submit-btn">${isCyr?'Kabinet yaratish':'Kabinet yaratish'} <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
+   `:`
+    <div class="auth-field">
+     <label>${isCyr?'Телефон ёки логин':'Telefon yoki login'}</label>
+     <div class="auth-input-wrap">
+      <svg viewBox="0 0 24 24" class="auth-field-icon"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.14 12 19.79 19.79 0 0 1 1.08 3.38 2 2 0 0 1 3.05 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 16z"/></svg>
+      <input name="login" type="text" autocomplete="username" required placeholder="+998 90 123 45 67">
+     </div>
+    </div>
+    <div class="auth-field">
+     <label>${isCyr?'Parol':'Parol'}</label>
+     <div class="auth-input-wrap">
+      <svg viewBox="0 0 24 24" class="auth-field-icon"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <input name="password" id="auth-pwd" type="password" autocomplete="current-password" required placeholder="${isCyr?'Parolingizni kiriting':'Parolingizni kiriting'}">
+      <button type="button" class="auth-eye" id="auth-eye-btn" aria-label="Ko'rsatish">
+       <svg viewBox="0 0 24 24"><path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+     </div>
+    </div>
+    <button type="submit" class="auth-submit-btn">${tab1} <svg viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button>
+   `}
+  </form>
+  <div class="auth-trust-row">
+   <div class="auth-trust-item"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/></svg>100% xavfsiz</div>
+   <div class="auth-trust-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21v-1a8 8 0 0 0-16 0v1"/></svg>1,200+ mijoz</div>
+   <div class="auth-trust-item"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Bepul kabinet</div>
+  </div>`;
+ if(!modal.open)lastFocus=document.activeElement;
+ modal.innerHTML=`<div class="modal-body auth-modal-body"><div class="auth-dialog-wrap"><button type="button" class="icon-btn auth-close" data-action="close" aria-label="${isCyr?'Ёпиш':'Yopish'}">${icon('close')}</button>${regHtml}</div></div>`;
+ modal.querySelector('.auth-logo-sub').id='modal-title';
+ modal.querySelectorAll('.auth-field').forEach((wrapper,index)=>{
+  const input=wrapper.querySelector('input'),label=wrapper.querySelector('label');
+  if(input&&label){input.id=input.id||`auth-field-${index}`;label.htmlFor=input.id;}
+ });
+ if(!modal.open)modal.showModal();
+ modal.scrollTop=0;
+ const eyeBtn=modal.querySelector('#auth-eye-btn');
+ if(eyeBtn){
+  eyeBtn.addEventListener('click',()=>{
+   const inp=modal.querySelector('#auth-pwd');
+   if(!inp)return;
+   const show=inp.type==='password';
+   inp.type=show?'text':'password';
+   eyeBtn.setAttribute('aria-pressed',String(show));
+   eyeBtn.setAttribute('aria-label',show?'Parolni yashirish':'Parolni ko‘rsatish');
+  });
+ }
+ const pwdIn=modal.querySelector('[name="password"]');
+ if(pwdIn&&register){
+  pwdIn.addEventListener('input',()=>{
+   const v=pwdIn.value,l=v.length;
+   const bar=modal.querySelector('#auth-strength-fill'),lbl=modal.querySelector('#auth-strength-label');
+   if(!bar||!lbl)return;
+   const score=(l>=10?1:0)+(l>=14?1:0)+(/[A-Z]/.test(v)?1:0)+(/[0-9]/.test(v)?1:0)+(/[^A-Za-z0-9]/.test(v)?1:0);
+   const colors=['#fca5a5','#fdba74','#fde047','#86efac','#5eead4'];
+   const labels=["Juda zaif","Zaif","O'rtacha","Yaxshi","Kuchli"];
+   bar.style.width=`${Math.max(8,score*20)}%`;
+   bar.style.background=colors[Math.min(score,4)];
+   lbl.textContent=l>0?labels[Math.min(score,4)]:'';
+   lbl.style.color=colors[Math.min(score,4)];
+  });
+ }
+ const phoneIn=modal.querySelector('[name="phone"]');
+ if(phoneIn){
+  phoneIn.addEventListener('input',()=>{
+   let v=phoneIn.value.replace(/[^\d+]/g,'');
+   if(!v.startsWith('+'))v='+'+v;
+   if(v==='+')v='+998';
+   phoneIn.value=v;
+  });
+ }
 }
 function privacyDialog() {
  const isCyr=state.script==='cyr';
@@ -103,33 +234,40 @@ function historyMessage(h){if(h.kind!=='service')return h.message;return String(
 function timeline(c){return `<ul class="timeline">${(c.history||[]).map(h=>`<li><div><p>${esc(historyMessage(h))}</p><small>${date(h.createdAt,true)}${h.actorName?` · ${esc(h.actorName)}`:''}</small></div></li>`).join('')||'<li><div><p>Murojaat qabul qilindi</p><small>'+date(c.createdAt,true)+'</small></div></li>'}</ul>`;}
 function caseReadOnly(c,token='') {
  const activeIndex=state.config.statuses.indexOf(c.status);
- return `<div class="detail-heading"><h3>${esc(c.number)}</h3>${badge(c.status)}</div><div class="case-progress" aria-label="Murojaat holati: ${esc(statusNames[c.status])}">${state.config.statuses.filter(s=>s!=='cancelled').map((s,i)=>`<span class="${i<=activeIndex&&c.status!=='cancelled'?'done':''}" title="${esc(statusNames[s])}"></span>`).join('')}</div><dl class="detail-grid"><div><dt>Xizmat yo‘nalishi</dt><dd>${esc(category(c.category))}</dd></div><div><dt>Murojaat sanasi</dt><dd>${date(c.createdAt,true)}</dd></div><div><dt>Hudud</dt><dd>${esc(c.region||'Ko‘rsatilmagan')}</dd></div><div><dt>Koordinator</dt><dd>${esc(c.coordinatorName||'Biriktirilmoqda')}</dd></div>${c.dueAt?`<div><dt>Rejalashtirilgan muddat</dt><dd>${date(c.dueAt,true)}</dd></div>`:''}</dl><div class="description">${esc(c.description)}</div>${c.services?.length?`<section class="detail-section"><h3>Murojaat tarkibidagi xizmatlar</h3>${c.services.map(s=>`<div class="service-row"><div class="service-row-head"><b>${esc(s.title)}</b>${badge(s.status,true)}</div><p>${esc(s.partnerName||'Hamkor biriktirilmoqda')}${Number(s.price)?` · ${money(s.price)}`:''}</p></div>`).join('')}</section>`:'<div class="notice">Koordinator ehtiyojingizni aniqlagach, kerakli xizmatlar shu yerda ko‘rinadi.</div>'}<section class="detail-section"><h3>Jarayon tarixi</h3>${timeline(c)}</section>${feedbackForm(c,token)}`;
+  const attachHtml = c.attachments?.length ? `<section class="detail-section"><h3>Biriktirilgan fayllar</h3><div class="file-list">${c.attachments.map(f=>{
+    const isAudio=f.type?.startsWith('audio/')||f.name?.endsWith('.webm')||f.name?.endsWith('.mp3')||f.name?.endsWith('.ogg')||f.name?.endsWith('.wav')||f.name?.includes('ovozli');
+    if(isAudio){
+      return `<div class="audio-attachment-card"><div class="audio-card-head"><span class="audio-badge">${icon('mic')} Ovozli xabar</span><small>${Math.max(1,Math.round(f.size/1024))} KB</small></div><audio controls preload="metadata" src="/api/files/${Number(f.id)}"></audio><a href="/api/files/${Number(f.id)}" download class="audio-dl-btn">${icon('download')} ${esc(f.name)}</a></div>`;
+    }
+    return `<a href="/api/files/${Number(f.id)}" download>${icon('download')}${esc(f.name)} (${Math.max(1,Math.round(f.size/1024))} KB)</a>`;
+  }).join('')}</div></section>` : '';
+  return `<div class="detail-heading"><h3>${esc(c.number)}</h3>${badge(c.status)}</div><div class="case-progress" aria-label="Murojaat holati: ${esc(statusNames[c.status])}">${state.config.statuses.filter(s=>s!=='cancelled').map((s,i)=>`<span class="${i<=activeIndex&&c.status!=='cancelled'?'done':''}" title="${esc(statusNames[s])}"></span>`).join('')}</div><dl class="detail-grid"><div><dt>Xizmat yo‘nalishi</dt><dd>${esc(category(c.category))}</dd></div><div><dt>Murojaat sanasi</dt><dd>${date(c.createdAt,true)}</dd></div><div><dt>Hudud</dt><dd>${esc(c.region||'Ko‘rsatilmagan')}</dd></div><div><dt>Koordinator</dt><dd>${esc(c.coordinatorName||'Biriktirilmoqda')}</dd></div>${c.dueAt?`<div><dt>Rejalashtirilgan muddat</dt><dd>${date(c.dueAt,true)}</dd></div>`:''}</dl><div class="description">${esc(c.description)}</div>${c.services?.length?`<section class="detail-section"><h3>Murojaat tarkibidagi xizmatlar</h3>${c.services.map(s=>`<div class="service-row"><div class="service-row-head"><b>${esc(s.title)}</b>${badge(s.status,true)}</div><p>${esc(s.partnerName||'Hamkor biriktirilmoqda')}${Number(s.price)?` · ${money(s.price)}`:''}</p></div>`).join('')}</section>`:'<div class="notice">Koordinator ehtiyojingizni aniqlagach, kerakli xizmatlar shu yerda ko‘rinadi.</div>'}${attachHtml}<section class="detail-section"><h3>Jarayon tarixi</h3>${timeline(c)}</section>${feedbackForm(c,token)}`;
 }
 function route(){const [prefix,view]=location.hash.slice(1).split('/');return prefix==='cabinet'?(view||'overview'):null;}
-function workspaceShell(view) {
- app.dataset.page='workspace';
- const isCyr=state.script==='cyr';
- const menu=staff()?[
-   ['overview','chart',isCyr?'Умумий кўриниш':'Umumiy ko‘rinish'],
-   ['cases','file',isCyr?'Мурожаатлар':'Murojaatlar'],
-   ['partners','briefcase',isCyr?'Ҳамкорлар':'Hamkorlar'],
-   ['clients','users',isCyr?'Мижозлар':'Mijozlar'],
-   ['packages','home',isCyr?'Оила пакетлари':'Oila paketlari'],
-   ['notifications','bell',isCyr?'Хабарномалар':'Xabarnomalar'],
-   ...(state.user.role==='director'?[['team','users',isCyr?'Ходимлар':'Xodimlar']]:[])
- ]:state.user.role==='partner'?[
-   ['overview','chart',isCyr?'Умумий кўриниш':'Umumiy ko‘rinish'],
-   ['cases','layers',isCyr?'Менинг хизматларим':'Mening xizmatlarim']
- ]:[
-   ['overview','home',isCyr?'Менинг кабинетим':'Mening kabinetim'],
-   ['cases','file',isCyr?'Мурожаатларим':'Murojaatlarim'],
-   ['packages','users',isCyr?'Оила пакетим':'Oila paketim']
- ];
- const activeItem=menu.find(m=>m[0]===view)||menu[0];
- const title=activeItem[2];
- const navLinks=menu.map(([id,ico,text])=>`<a href="#cabinet/${id}" class="${view===id?'active':''}">${icon(ico)}<span>${esc(text)}</span></a>`).join('');
- app.innerHTML=`<div class="workspace"><aside class="sidebar"><div class="sidebar-top">${brand()}</div><nav class="sidebar-nav" aria-label="${isCyr?'Кабинет навигацияси':'Kabinet navigatsiyasi'}"><span class="sidebar-label">${esc(tr(roleNames[state.user.role]))} ${isCyr?'кабинети':'kabineti'}</span><div class="side-nav">${navLinks}</div></nav><div class="sidebar-bottom"><button class="script-toggle" data-action="toggle-script" title="Alifboni o‘zgartirish" style="margin-bottom:12px;width:100%;text-align:center">${state.script==='cyr'?'O‘zb (Lotin)':'Ўзб (Кирилл)'}</button><a href="#home">${icon('arrow')} ${isCyr?'Бош саҳифага қайтиш':'Bosh sahifaga qaytish'}</a></div></aside><div class="workspace-main"><header class="workspace-top"><button class="icon-btn mobile-toggle" data-action="menu" aria-label="Menyuni ochish" aria-expanded="false">${icon('menu')}</button><span class="crumb">${isCyr?'Иш майдони':'Ish maydoni'} &nbsp; / &nbsp; ${esc(title)}</span><div class="account"><span class="account-avatar">${esc(state.user.name.slice(0,2).toUpperCase())}</span><div><div class="account-name">${esc(state.user.name)}</div><div class="account-role">${esc(tr(roleNames[state.user.role]))}</div></div><button class="icon-btn" data-action="logout" aria-label="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}" title="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}">${icon('logout')}</button></div></header><main id="main" class="workspace-content"><div class="loading" role="status">${isCyr?'Маълумотлар юкланмоқда…':'Ma’lumotlar yuklanmoqda…'}</div></main></div></div>`;
-}
+ function workspaceShell(view) {
+  app.dataset.page='workspace';
+  const isCyr=state.script==='cyr';
+  const menu=staff()?[
+    ['overview','chart',isCyr?'Умумий кўриниш':'Umumiy ko‘rinish'],
+    ['cases','file',isCyr?'Мурожаатлар':'Murojaatlar'],
+    ['partners','briefcase',isCyr?'Ҳамкорлар':'Hamkorlar'],
+    ['clients','users',isCyr?'Мижозлар':'Mijozlar'],
+    ['packages','home',isCyr?'Оила пакетлари':'Oila paketlari'],
+    ['notifications','bell',isCyr?'Хабарномалар':'Xabarnomalar'],
+    ...(state.user.role==='director'?[['team','users',isCyr?'Ходимлар':'Xodimlar']]:[])
+  ]:state.user.role==='partner'?[
+    ['overview','chart',isCyr?'Умумий кўриниш':'Umumiy ko‘rinish'],
+    ['cases','layers',isCyr?'Менинг хизматларим':'Mening xizmatlarim']
+  ]:[
+    ['overview','home',isCyr?'Менинг кабинетим':'Mening kabinetim'],
+    ['cases','file',isCyr?'Мурожаатларим':'Murojaatlarim'],
+    ['packages','users',isCyr?'Оила пакетим':'Oila paketim']
+  ];
+  const activeItem=menu.find(m=>m[0]===view)||menu[0];
+  const title=activeItem[2];
+  const navLinks=menu.map(([id,ico,text])=>`<a href="#cabinet/${id}" class="${view===id?'active':''}">${icon(ico)}<span>${esc(text)}</span></a>`).join('');
+app.innerHTML=`<div class="workspace"><aside class="sidebar"><div class="sidebar-top">${brand()}</div><nav class="sidebar-nav" aria-label="${isCyr?'Кабинет навигацияси':'Kabinet navigatsiyasi'}"><span class="sidebar-label">${esc(tr(roleNames[state.user.role]))} ${isCyr?'кабинети':'kabineti'}</span><div class="side-nav">${navLinks}</div></nav><div class="sidebar-bottom"><button class="script-toggle" data-action="toggle-script" title="Alifboni o‘zgartirish" style="margin-bottom:12px;width:100%;text-align:center">${state.script==='cyr'?'O‘zb (Lotin)':'Ўзб (Кирилл)'}</button><a href="#home">${icon('arrow')} ${isCyr?'Бош саҳифага қайтиш':'Bosh sahifaga qaytish'}</a></div></aside><div class="workspace-main"><header class="workspace-top"><button class="icon-btn mobile-toggle" data-action="menu" aria-label="Menyuni ochish" aria-expanded="false">${icon('menu')}</button><span class="crumb">${isCyr?'Иш майдони':'Ish maydoni'} &nbsp; / &nbsp; ${esc(title)}</span><div class="account"><span class="account-avatar">${esc(state.user.name.slice(0,2).toUpperCase())}</span><div><div class="account-name">${esc(state.user.name)}</div><div class="account-role">${esc(tr(roleNames[state.user.role]))}</div></div><button class="icon-btn" data-action="logout" aria-label="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}" title="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}">${icon('logout')}</button></div></header><main id="main" class="workspace-content"><div class="loading" role="status">${isCyr?'Маълумотлар юкланмоқда…':'Ma’lumotlar yuklanmoqda…'}</div></main></div></div>`;
+ }
 async function renderRoute() {
  const version=++routeVersion,view=route();
  if(!view){if(app.dataset.page!=='public')landing();if(['#services','#how','#family'].includes(location.hash))requestAnimationFrame(()=>$(location.hash)?.scrollIntoView({behavior:'smooth'}));else if(location.hash==='#home')window.scrollTo(0,0);return;}
@@ -210,7 +348,13 @@ function renderCaseDialog(c){
   if(isStaff&&!inactive)html+=`<details style="margin-top:17px"><summary class="text-btn small-text">${icon('plus')} ${isCyr?'Хизмат қўшиш':'Xizmat qo‘shish'}</summary><form id="service-add-form" data-id="${c.id}" style="margin-top:16px">${formError}<div class="form-grid">${field('title',isCyr?'Хизмат номи':'Xizmat nomi','text','','required maxlength="200" placeholder="Masalan: Uyda shifokor ko‘rigi"',true)}${selectField('partnerId',isCyr?'Ҳамкор':'Hamkor',options(state.partners,'',isCyr?'Кейин бириктириш':'Keyin biriktirish'))}${field('price',isCyr?'Келишилган нарх · сўм':'Kelishilgan narx · so‘m','number','','min="0" step="1" placeholder="Ixtiyoriy"')}</div><div class="form-actions"><button class="btn small" type="submit">${isCyr?'Хизматни қўшиш':'Xizmatni qo‘shish'}</button></div></form></details>`;
   html+='</section>';if(c.feedback)html+=feedbackForm(c,'');html+=`<section class="detail-section"><h3>${isStaff?(isCyr?'Жараён ва ички қайдлар':'Jarayon va ichki qaydlar'):(isCyr?'Жараён тарихи':'Jarayon tarixi')}</h3>${timeline(c)}</section>`;
  }
- if(c.attachments?.length&&!isPartner)html+=`<section class="detail-section"><h3>${isCyr?'Бириктирилган файллар':'Biriktirilgan fayllar'}</h3><div class="file-list">${c.attachments.map(f=>`<a href="/api/files/${Number(f.id)}" download>${icon('download')}${esc(f.name)} (${Math.max(1,Math.round(f.size/1024))} KB)</a>`).join('')}</div></section>`;
+ if(c.attachments?.length&&!isPartner)html+=`<section class="detail-section"><h3>${isCyr?'Бириктирилган файллар':'Biriktirilgan fayllar'}</h3><div class="file-list">${c.attachments.map(f=>{
+  const isAudio=f.type?.startsWith('audio/')||f.name?.endsWith('.webm')||f.name?.endsWith('.mp3')||f.name?.endsWith('.ogg')||f.name?.endsWith('.wav')||f.name?.includes('ovozli');
+  if(isAudio){
+    return `<div class="audio-attachment-card"><div class="audio-card-head"><span class="audio-badge">${icon('mic')} ${isCyr?'Овозли хабар':'Ovozli xabar'}</span><small>${Math.max(1,Math.round(f.size/1024))} KB</small></div><audio controls preload="metadata" src="/api/files/${Number(f.id)}"></audio><a href="/api/files/${Number(f.id)}" download class="audio-dl-btn">${icon('download')} ${esc(f.name)}</a></div>`;
+  }
+  return `<a href="/api/files/${Number(f.id)}" download>${icon('download')}${esc(f.name)} (${Math.max(1,Math.round(f.size/1024))} KB)</a>`;
+ }).join('')}</div></section>`;
  modalOpen(isCyr?'Мурожаат тафсилотлари':'Murojaat tafsilotlari',isPartner?(isCyr?'Сизга бириктирилган хизмат ва мижоз билан боғланиш.':'Sizga biriktirilgan xizmat va mijoz bilan bog‘lanish.'):(isCyr?'Ҳар бир хизмат ва кейинги қадам шу ерда.':'Har bir xizmat va keyingi qadam shu yerda.'),html);
 }
 function toLocalInput(d){const dt=new Date(d);return new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);}
@@ -272,16 +416,16 @@ document.addEventListener('click',async e=>{
   if(action==='close')modalClose();
   else if(action==='request')requestDialog(button.dataset.category||(button.dataset.package?state.config.categories.find(c=>c.name==='Boshqa')?.id:''),button.dataset.package);
   else if(action==='request-unknown')requestDialog('','',true);
-  else if(action==='toggle-script'){state.script=state.script==='cyr'?'lat':'cyr';localStorage.setItem('zar_script',state.script);await renderRoute();}
+  else if(action==='toggle-script'){state.script=state.script==='cyr'?'lat':'cyr';localStorage.setItem('zar_script',state.script);app.dataset.page='';await renderRoute();}
   else if(action==='case-tab'){state.filters.tab=button.dataset.tab;document.querySelectorAll('.case-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.filters.tab));$('#case-results').innerHTML=staff()?caseTable(filteredCases()):caseCards(filteredCases());}
-  else if(action==='user-new')userDialog();
+  else if(action==='user-new'){state.partners=(await api('/partners')).partners;userDialog();}
   else if(action==='track')trackingDialog();
   else if(action==='track-prefill')trackingDialog(button.dataset.number,button.dataset.token);
   else if(action==='login')loginDialog();
   else if(action==='register')loginDialog(true);
   else if(action==='privacy')privacyDialog();
   else if(action==='cabinet')location.hash='cabinet/overview';
-  else if(action==='logout'){await api('/auth/logout',{});state.user=null;state.cases=[];state.partners=[];state.clients=[];state.team=[];state.packages=[];state.stats=null;state.notifications=[];voiceFile=null;modalClose();modal.innerHTML='';state.filters={search:'',status:'',category:'',overdue:false,tab:'all'};app.dataset.page='';location.hash='home';await renderRoute();toast('Hisobdan chiqdingiz.');}
+  else if(action==='logout'){await api('/auth/logout',{});state.user=null;state.cases=[];state.partners=[];state.clients=[];state.team=[];state.teamUsers=[];state.packages=[];state.stats=null;state.notifications=[];voiceFile=null;modalClose();modal.innerHTML='';state.filters={search:'',status:'',category:'',overdue:false,tab:'all'};app.dataset.page='';location.hash='home';await renderRoute();toast('Hisobdan chiqdingiz.');}
   else if(action==='copy'){try{await navigator.clipboard.writeText(button.dataset.text);toast('Nusxalandi. Maxfiy kalitni xavfsiz saqlang.');}catch{const input=document.createElement('textarea');input.value=button.dataset.text;modal.append(input);input.select();const ok=document.execCommand('copy');input.remove();toast(ok?'Nusxalandi.':'Nusxalab bo‘lmadi. Kalitni qo‘lda belgilab nusxalang.');}}
   else if(action==='record')await toggleRecording(button);
   else if(action==='case')await caseDialog(button.dataset.id);
@@ -293,7 +437,26 @@ document.addEventListener('click',async e=>{
   else if(action==='menu'){const open=$('.workspace').classList.toggle('menu-open');button.setAttribute('aria-expanded',String(open));}
  }catch(error){toast(error.message);}
 });
-document.addEventListener('input',e=>{if(['case-search','case-status','case-category','case-overdue'].includes(e.target.id))updateCaseFilter();if(['partner-search','partner-category'].includes(e.target.id)){const q=$('#partner-search').value.toLowerCase(),cat=$('#partner-category').value;$('#partner-results').innerHTML=partnersTable(state.partners.filter(p=>(!q||`${p.name} ${p.phone} ${p.region}`.toLowerCase().includes(q))&&(!cat||p.category===cat)));}});
+document.addEventListener('input',e=>{
+  if(e.target.name==='description'){
+    const val=e.target.value.toLowerCase();
+    const match=aiKeywords.find(k=>k.words.some(w=>val.includes(w)));
+    const box=$('#ai-suggestion-box');
+    const catSelect=e.target.form?.querySelector('[name="category"]');
+    if(box){
+      if(match && val.length>=6){
+        if(catSelect && (!catSelect.dataset.manual || catSelect.value==='other' || !catSelect.value)){
+          catSelect.value=match.id;
+        }
+        box.innerHTML=`<div class="ai-suggestion-chip"><span class="ai-badge-pulse"></span> <span><strong>AI таҳлили:</strong> Сизнинг матнингиз асосида <em>${esc(state.script==='cyr'?tr(match.name):match.name)}</em> йўналиши тавсия этилди.</span></div>`;
+      } else {
+        box.innerHTML='';
+      }
+    }
+  }
+  if(e.target.name==='category'){
+    e.target.dataset.manual='true';
+  }if(['case-search','case-status','case-category','case-overdue'].includes(e.target.id))updateCaseFilter();if(['partner-search','partner-category'].includes(e.target.id)){const q=$('#partner-search').value.toLowerCase(),cat=$('#partner-category').value;$('#partner-results').innerHTML=partnersTable(state.partners.filter(p=>(!q||`${p.name} ${p.phone} ${p.region}`.toLowerCase().includes(q))&&(!cat||p.category===cat)));}});
 document.addEventListener('submit',async e=>{
  const form=e.target;if(!(form instanceof HTMLFormElement))return;e.preventDefault();const submit=form.querySelector('[type="submit"]'),original=submit?.innerHTML,errorBox=$('.form-error',form);if(errorBox)errorBox.innerHTML='';if(submit){submit.disabled=true;submit.textContent='Kutilmoqda…';}const data=Object.fromEntries(new FormData(form));
  try{

@@ -29,6 +29,31 @@ test('request validation and atomic file validation',async()=>{
   assert.equal((await request('/api/requests',{method:'POST',body:{...input,attachments:[{name:'a.png',type:'image/png',data:Buffer.from('<script>bad</script>').toString('base64')}]}})).status,400);
   assert.equal(app.db.prepare('SELECT count(*) n FROM cases').get().n,4);
 });
+test('unknown API routes return JSON 404 and malformed input is rejected',async()=>{
+  const missing=await request('/api/not-a-route');
+  assert.equal(missing.status,404);
+  assert.equal(typeof missing.data.error,'string');
+  const malformed=await fetch(`${base}/api/requests`,{method:'POST',headers:{'Content-Type':'application/json'},body:'null'});
+  assert.equal(malformed.status,400);
+});
+test('only directors manage staff accounts and credentials remain private',async()=>{
+  const director=await login('director');
+  const account={login:'qa_partner',name:'Sinov hamkor',phone:'+998909998877',password:'TestPartnerPassword2026!',role:'partner',partnerId:1};
+  assert.equal((await request('/api/users',{cookie:operator})).status,403);
+  assert.equal((await request('/api/users',{method:'POST',cookie:client,body:account})).status,403);
+  assert.equal((await request('/api/users',{method:'POST',cookie:director,body:{...account,partnerId:3}})).status,400);
+  const createdUser=await request('/api/users',{method:'POST',cookie:director,body:account});
+  assert.equal(createdUser.status,201);
+  assert.equal(createdUser.data.user.partnerId,1);
+  assert.equal((await request('/api/users',{method:'POST',cookie:director,body:account})).status,409);
+  const users=await request('/api/users',{cookie:director});
+  assert.equal(users.status,200);
+  assert.ok(users.data.users.every(u=>u.password===undefined&&u.password_hash===undefined));
+  const stored=app.db.prepare('SELECT password_hash FROM users WHERE login=?').get(account.login);
+  assert.notEqual(stored.password_hash,account.password);
+  assert.equal((await request('/api/auth/login',{method:'POST',body:{login:account.login,password:'wrong password'}})).status,401);
+  assert.equal((await request('/api/auth/login',{method:'POST',body:{login:account.login,password:account.password}})).status,200);
+});
 test('create request, persist private attachments, protect tracking token',async()=>{
   const r=await request('/api/requests',{method:'POST',cookie:client,body:{...input,attachments:[{name:'test.pdf',type:'application/pdf',data:Buffer.from('%PDF-1.4\nexample').toString('base64')}]}});
   assert.equal(r.status,201);created=r.data;assert.match(created.case.number,/^ZAR-\d{6}$/);assert.ok(created.trackingToken.length>=24);
