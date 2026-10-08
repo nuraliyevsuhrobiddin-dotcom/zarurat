@@ -51,12 +51,7 @@ const textareaField = (name, label, value = '', attrs = '', full = true) => `<di
 const formError = '<div class="form-error" role="alert"></div>';
 let routeVersion = 0, lastFocus = null, recording = null, voiceFile = null, toastTimer;
 async function api(path, body, method) {
- if (isSupabaseConfigured()) {
-  return await supabaseApi(path, body, method);
- }
- const res = await fetch('/api' + path, { credentials:'same-origin', headers:body !== undefined ? {'Content-Type':'application/json'} : {}, method:method || (body !== undefined ? 'POST':'GET'), ...(body !== undefined ? {body:JSON.stringify(body)} : {}) });
- let result; try { result = await res.json(); } catch { throw new Error('Server javobini o‘qib bo‘lmadi. Qayta urinib ko‘ring.'); }
- if(!res.ok) throw new Error(result.error || 'So‘rov bajarilmadi. Qayta urinib ko‘ring.'); return result;
+ return await supabaseApi(path, body, method);
 }
 function toast(text) { $('#toast').textContent=text; $('#toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4200); }
 function modalOpen(title, subtitle, content) { if(!modal.open) lastFocus=document.activeElement; modal.innerHTML=`<header class="modal-head"><div><h2 id="modal-title">${esc(title)}</h2>${subtitle ? `<p>${esc(subtitle)}</p>`:''}</div><button class="icon-btn" data-action="close" aria-label="Yopish">${icon('close')}</button></header><div class="modal-body">${content}</div>`; if(!modal.open) modal.showModal(); modal.scrollTop=0; }
