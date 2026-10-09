@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const files = ['server.mjs'];
-for (const directory of ['lib', 'api', 'public', 'scripts', 'tests']) {
+for (const directory of ['lib', 'public', 'scripts', 'tests']) {
+  if (!existsSync(directory)) continue;
   for (const entry of readdirSync(directory)) {
     if (/\.(mjs|js)$/.test(entry)) files.push(join(directory, entry));
   }
