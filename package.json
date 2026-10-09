@@ -1,17 +1,9 @@
 {
   "name": "zaruriyat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "type": "module",
+  "description": "Ijtimoiy yordam murojaatlarini boshqarish platformasi — Vercel + Supabase",
   "engines": {
-    "node": ">=24.0.0"
-  },
-  "scripts": {
-    "start": "node --env-file-if-exists=.env server.mjs",
-    "dev": "node --env-file-if-exists=.env --watch server.mjs",
-    "test": "node --test --test-isolation=none tests/*.test.mjs",
-    "user:add": "node --env-file-if-exists=.env scripts/admin.mjs add-user",
-    "backup": "node --env-file-if-exists=.env scripts/admin.mjs backup",
-    "check": "node scripts/check.mjs"
+    "node": ">=18.0.0"
   }
 }
