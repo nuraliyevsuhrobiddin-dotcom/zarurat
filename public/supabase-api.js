@@ -42,7 +42,8 @@ export function setCurrentUser(user) {
 }
 
 // Global API router
-export async function supabaseApi(path, body, method = 'GET') {
+export async function supabaseApi(path, body, methodInput) {
+  const method = String(methodInput || (body !== undefined ? 'POST' : 'GET')).toUpperCase();
   const client = await getSupabase();
   if (!client) {
     throw new Error('Supabase sozlanmagan. Iltimos, Supabase URL va Anon Key ni kiriting.');

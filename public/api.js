@@ -1,8 +1,9 @@
 import { supabaseApi, isSupabaseConfigured } from './supabase-api.js';
 
 export async function api(path, body, method) {
+  const resolvedMethod = String(method || (body !== undefined ? 'POST' : 'GET')).toUpperCase();
   if (isSupabaseConfigured()) {
-    return await supabaseApi(path, body, method);
+    return await supabaseApi(path, body, resolvedMethod);
   }
 
   const response = await fetch('/api' + path, {
