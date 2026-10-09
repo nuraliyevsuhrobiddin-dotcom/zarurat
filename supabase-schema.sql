@@ -128,17 +128,21 @@ CREATE INDEX IF NOT EXISTS idx_services_case_id ON services(case_id);
 CREATE INDEX IF NOT EXISTS idx_services_partner_id ON services(partner_id);
 CREATE INDEX IF NOT EXISTS idx_history_case_id ON history(case_id);
 
--- RLS (Row Level Security) ni o'chirish — frontend bemalol to'g'ridan-to'g'ri o'qib-yozishi uchun
-ALTER TABLE partners DISABLE ROW LEVEL SECURITY;
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cases DISABLE ROW LEVEL SECURITY;
-ALTER TABLE services DISABLE ROW LEVEL SECURITY;
-ALTER TABLE history DISABLE ROW LEVEL SECURITY;
-ALTER TABLE attachments DISABLE ROW LEVEL SECURITY;
-ALTER TABLE feedback DISABLE ROW LEVEL SECURITY;
-ALTER TABLE packages DISABLE ROW LEVEL SECURITY;
-ALTER TABLE package_usage DISABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+-- RLS siyosatlarini (Policies) yaratish — anon va authenticated rollariga to'liq ruxsat
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['partners', 'users', 'cases', 'services', 'history',
+    'attachments', 'feedback', 'packages', 'package_usage', 'notifications'] LOOP
+    IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+      EXECUTE format('DROP POLICY IF EXISTS "anon_full_access" ON public.%I', t);
+      EXECUTE format('CREATE POLICY "anon_full_access" ON public.%I FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true)', t);
+      EXECUTE format('ALTER TABLE public.%I DISABLE ROW LEVEL SECURITY', t);
+    END IF;
+  END LOOP;
+END $$;
 
 -- anon va authenticated rollariga ruxsat berish
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
