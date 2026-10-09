@@ -38,19 +38,11 @@ Agar saytingizda ma’lumotlar ochilmay qolgan bo‘lsa (401 / permission denied
 
 ---
 
-## 4-qadam: Tizimga kirish akkauntlari
+## 4-qadam: Tizimga kirish va akkauntlar
 
-* **Operator (Koordinator):**
-  - Login: `operator` (yoki `+998901234501`)
-  - Parol: `Zaruriyat2026!`
-* **Direktor (Rahbar):**
-  - Login: `director` (yoki `+998901234502`)
-  - Parol: `Zaruriyat2026!`
-* **Mijoz:**
-  - Login: `client` (yoki `+998901234503`)
-  - Parol: `Zaruriyat2026!`
-* **Hamkor:**
-  - Login: `partner` (yoki `+998901234504`)
-  - Parol: `Zaruriyat2026!`
+Loyihada hech qanday soxta yoki demo akkauntlar yo‘q.
 
-Yangi mijozlar saytdan to‘g‘ridan-to‘g‘ri telefon raqamlari orqali ham ro‘yxatdan o‘tishlari mumkin.
+1. Saytingizga kirib, **"Ro‘yxatdan o‘tish"** bo‘limi orqali o‘z ismingiz, telefon raqamingiz va parolingiz bilan ro‘yxatdan o‘tasiz.
+2. Saytda birinchi bo‘lib ro‘yxatdan o‘tgan shaxs avtomatik ravishda **Direktor (Rahbar / Admin)** maqomiga ega bo‘ladi.
+3. Shundan so‘ng Rahbar kabinetiga kirib, yangi koordinatorlar (operatorlar) va hamkorlarni bevosita o‘zingiz qo‘sha olasiz.
+4. Oddiy tashrif buyuruvchilar esa avtomatik **Mijoz** sifatida ro‘yxatdan o‘tadilar.

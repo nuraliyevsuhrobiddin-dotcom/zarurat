@@ -98,7 +98,7 @@ export async function supabaseApi(path, body, methodInput) {
       .or(`login.eq.${login},phone.eq.${login},phone.eq.${cleanPhone}`);
 
     if (error) throw new Error(error.message);
-    const user = (users || []).find(u => u.password_hash === pwd || u.password_hash === 'Zaruriyat2026!');
+    const user = (users || []).find(u => u.password_hash === pwd);
     if (!user) {
       throw new Error('Login yoki parol noto‘g‘ri.');
     }
@@ -120,12 +120,16 @@ export async function supabaseApi(path, body, methodInput) {
       throw new Error('Bu telefon raqami allaqachon ro‘yxatdan o‘tgan.');
     }
 
+    // Birinchi ro'yxatdan o'tgan foydalanuvchini avtomatik 'director' (Rahbar) qilamiz
+    const { count } = await client.from('users').select('id', { count: 'exact', head: true });
+    const userRole = (!count || count === 0) ? 'director' : 'client';
+
     const { data: created, error } = await client.from('users').insert([{
       login: phone,
       name,
       phone,
       password_hash: password,
-      role: 'client'
+      role: userRole
     }]).select().single();
 
     if (error) throw new Error(error.message);

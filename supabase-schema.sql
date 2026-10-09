@@ -150,14 +150,4 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 
--- Namunaviy ma'lumotlar (Boshlang'ich hisoblar)
-INSERT INTO partners (id, name, phone, address, category, hours, region, price, contract_status) VALUES
-(1, '«Adolat» yuridik byurosi', '+998901112233', 'Toshkent sh., Amir Temur shox ko‘chasi, 12-uy', 'legal', '09:00 - 18:00', 'Toshkent shahri', 150000, 'active')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO users (login, name, phone, password_hash, role, partner_id) VALUES
-('operator', 'Operator Sarvinoz', '+998901234501', 'Zaruriyat2026!', 'operator', NULL),
-('director', 'Rahbar Aziz', '+998901234502', 'Zaruriyat2026!', 'director', NULL),
-('client', 'Mijoz Dilshod', '+998901234503', 'Zaruriyat2026!', 'client', NULL),
-('partner', 'Hamkor Rustam', '+998901234504', 'Zaruriyat2026!', 'partner', 1)
-ON CONFLICT (login) DO UPDATE SET password_hash = 'Zaruriyat2026!';
+-- Barcha jadvallar tayyor. Demo akkauntlar olib tashlandi.
