@@ -1,103 +1,41 @@
 # ZARURIYAT
 
-Ijtimoiy yordam murojaatlarini boshqaradigan veb-platforma.  
-Mijoz → murojaat → koordinator → hamkor → natija.
-
-**Arxitektura:** Statik frontend (Vercel) + Supabase (PostgreSQL + Auth emas, custom auth)  
-**Hujjatlar:** [docs/TALABLAR.md](docs/TALABLAR.md) · [SUPABASE-VERCEL-QOLLANMA.md](SUPABASE-VERCEL-QOLLANMA.md) · [Texnik Topshiriq](docs/TEXNIK-TOPSHIRIQ.md)
-
----
+Xizmatlarni koordinator orqali tashkil etish va murojaatni natijagacha kuzatish platformasi.
 
 ## Arxitektura
 
-```
-Foydalanuvchi brauzer
-       │
-       ▼
-  Vercel CDN (static)
-  public/index.html
-  public/app.js
-  public/api.js          ← API facade
-  public/supabase-api.js ← Supabase client
-       │
-       ▼
-  Supabase (PostgreSQL)
-  - users, cases, partners
-  - services, history, attachments
-  - packages, feedback, notifications
-```
+Brauzer ' bir xil domen /api ' Node.js server ' Supabase PostgreSQL.
+Frontend statik HTML/CSS/JS; server Vercel Function yoki mahalliy Node.js.
+Brauzer bazaga to'g'ridan-to'g'ri ulanmaydi. Service-role kalit faqat serverda.
 
-Server taraf kodi yo'q. Barcha so'rovlar brauzerdan to'g'ridan-to'g'ri Supabase'ga boradi.
+- Parollar pgcrypto bcrypt bilan xeshlanadi; eski oddiy parollar migratsiyada xeshlanadi.
+- 12 soatlik sessiya: HttpOnly, SameSite=Lax, HTTPS'da Secure cookie; bazada token xeshi.
+- Mijoz faqat o'z murojaatini, hamkor o'z xizmatini ko'radi. Ichki qaydlar staff uchun.
+- Ochiq kuzatish raqam va kriptografik maxfiy kod bilan; kod URL'ga yozilmaydi.
+- SQL amallari murojaat, fayllar, tarix va xabar navbatini tranzaksiyada saqlaydi.
+- Paketning muddati, mijozga tegishliligi va limiti bazada tekshiriladi.
+- Ro'yxatdan o'tgan hisob doim client; rahbar avtomatik tayinlanmaydi.
 
----
+## Ishga tushirish
 
-## Sozlash
+Node.js 24 talab qilinadi. Yangi bazada `supabase-schema.sql`; mavjud bazada
+`migrations/001_secure_server.sql` ni Supabase SQL Editor orqali bajaring.
+So'ng `.env.example` asosida `.env` tayyorlang va `npm install`, `npm start`.
+Statik `serve public` backend funksiyalarini ishlatmaydi.
 
-### 1. Supabase
+To'liq ko'rsatma: [joylashtirish va migratsiya](docs/ISHGA-TUSHIRISH.md).
+Tekshirish: `npm test` ' Node API va PostgreSQL/PGlite integratsion testlar.
 
-1. [supabase.com](https://supabase.com) da yangi project yarating
-2. SQL Editor → `supabase-schema.sql` ni ishga tushiring
-3. Project Settings → API → `URL` va `anon key` ni oling
+## Chegaralar
 
-### 2. Vercel
+Telegram/SMS adapterlari, OTP bilan tiklash va hisobni bloklash tayyor, lekin
+`002_accounts_notifications.sql` hamda provayder sozlamalarisiz o'chirilgan.
+O'z parolini o'zgartirish faol; to'lov integratsiyasi hali yo'q. Fayllar bazada base64,
+3 ta va jami 2.8 MiB; haqiqiy MIME signaturasi tekshiriladi, antivirus emas.
+Paket yangilash foydalanish tarixini saqlaydi; yangi billing davri avtomatik ochilmaydi.
+Kabinet 50 tadan murojaat yuklaydi; qidiruv va filtrlar serverda barcha ruxsatli yozuvlarga qo'llanadi.
+Maxfiylikdagi yakuniy biznes rekvizitlari, aloqa va saqlash muddati egasi tomonidan belgilanadi.
 
-1. [vercel.com](https://vercel.com) da GitHub repo ulanadi
-2. **Root Directory:** `public` (yoki `vercel.json` ni tekshiring)
-3. Environment Variables:
-   - `SUPABASE_URL` = `https://xxxx.supabase.co`
-   - `SUPABASE_ANON_KEY` = `eyJhb...`
-
-### 3. Lokal test
-
-```powershell
-# public/ papkasini statik server bilan ochish:
-npx serve public
-```
-
-Brauzer: `http://localhost:3000`
-
----
-
-## Birinchi foydalanuvchi (Rahbar)
-
-Demo akkauntlar yo'q. Birinchi ro'yxatdan o'tgan foydalanuvchi avtomatik ravishda `director` (rahbar) rolini oladi. Keyingi foydalanuvchilar `client` bo'lib qo'shiladi. Operator va hamkor rollarini rahbar kabineti orqali tayinlash mumkin (keyingi bosqich).
-
----
-
-## Asosiy imkoniyatlar
-
-- 14 xizmat yo'nalishi + yo'nalishni bilmaganlar uchun alohida yo'l
-- Murojaat yuborish, foto/PDF/audio biriktirish, ovoz yozish
-- `ZAR-000001` raqami va maxfiy kod bilan kuzatish
-- Rol asosida kirish: mijoz, operator, hamkor, rahbar
-- Keysda bir nechta xizmat, hamkor biriktirib, holatlar ketma-ket yangilanadi
-- Oila paketi tizimi (limit, muddati, a'zolar)
-- Yakunlangan murojaat uchun 1–5 baho
-- Telegram xabar navbati (bot hali ulanmagan)
-- O'zbek lotin/kiril yozuvi almashtirish
-
----
-
-## Ma'lumotlar bazasi tiklash
-
-Supabase bazasi yo'qolsa yoki yangi project ochilda:
-
-```sql
--- SQL Editor'da ishga tushiring:
--- 1. supabase-schema.sql   ← jadvallar va RLS siyosatlari
--- 2. SUPABASE_TIKLASH.sql  ← qo'shimcha tuzatmalar (agar kerak bo'lsa)
-```
-
----
-
-## Chegaralar (keyingi bosqich)
-
-- SMS/OTP orqali telefon tasdiqlash va parol tiklash
-- Telegram bot integratsiyasi (navbat tayyor, yuborish adapteri yo'q)
-- Billing, to'lov va paket avtomatligi
-- Rahbar interfeysi orqali xodim va hamkor hisoblarini yaratish
-- Antivirus, yuklama sinovlari va kengaytirilgan audit loglari
-
----
-
-Texnik topshiriq: [docs/TEXNIK-TOPSHIRIQ.md](docs/TEXNIK-TOPSHIRIQ.md)
+Kunlik zaxira AES-256-GCM bilan shifrlanib yopiq `zaruriyat-backups` bucketiga yoziladi.
+Bu mantiqiy dastur zaxirasi; PostgreSQL PITR o'rnini bosmaydi. Tiklash uchun
+`BACKUP_ENCRYPTION_KEY` alohida xavfsiz saqlanishi zarur. Eski nusxalar avtomatik o'chirilmaydi.

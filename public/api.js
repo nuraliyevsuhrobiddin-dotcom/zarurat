@@ -1,21 +1,15 @@
-import { supabaseApi, isSupabaseConfigured } from './supabase-api.js';
-
+﻿import { publicConfig } from './supabase-api.js';
 export async function api(path, body, method) {
-  const resolvedMethod = String(method || (body !== undefined ? 'POST' : 'GET')).toUpperCase();
-  if (isSupabaseConfigured()) {
-    return await supabaseApi(path, body, resolvedMethod);
-  }
-
+  const verb = method || (body === undefined ? 'GET' : 'POST');
+  if (path === '/config') return publicConfig;
   const response = await fetch('/api' + path, {
-    credentials: 'same-origin',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
-    method: String(method || (body !== undefined ? 'POST' : 'GET')).toUpperCase(),
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {})
+    method: verb, credentials: 'same-origin',
+    headers: body == null ? {} : { 'Content-Type': 'application/json' },
+    ...(body == null ? {} : { body: JSON.stringify(body) })
   });
-
   let result;
   try { result = await response.json(); }
-  catch { throw new Error('Server javobini o‘qib bo‘lmadi. Qayta urinib ko‘ring.'); }
-  if (!response.ok) throw new Error(result?.error || 'So‘rov bajarilmadi. Qayta urinib ko‘ring.');
+  catch { throw new Error('Xizmatga ulanib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.'); }
+  if (!response.ok) throw new Error(result.error || 'So‘rov bajarilmadi.');
   return result;
 }

@@ -4,21 +4,21 @@
   "description": "Xizmatlarni muvofiqlashtirish va muammolarni hal etish milliy onlayn platformasi.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0f1e",
-  "theme_color": "#0a0f1e",
+  "background_color": "#f7f9fc",
+  "theme_color": "#071b3b",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/images/services.jpg",
+      "src": "/images/zaruriyat-logo-192.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/images/hero.jpg",
+      "src": "/images/zaruriyat-logo-512.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

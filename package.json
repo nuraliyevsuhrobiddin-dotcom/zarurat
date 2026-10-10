@@ -1,9 +1,20 @@
 {
   "name": "zaruriyat",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "Ijtimoiy yordam murojaatlarini boshqarish platformasi — Vercel + Supabase",
+  "type": "module",
+  "description": "ZARURIYAT xizmatlarni muvofiqlashtirish platformasi",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/local.mjs",
+    "test": "node --test --test-isolation=none tests/*.test.mjs"
+  },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "24.x"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3"
   }
 }

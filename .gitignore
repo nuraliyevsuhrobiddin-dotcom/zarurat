@@ -8,3 +8,8 @@ data-private/
 artifacts/
 *.log
 .agent-cache/
+
+.vercel
+.env*
+!.env.example
+!.env.production.example

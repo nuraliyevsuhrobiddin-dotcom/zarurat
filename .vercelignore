@@ -1,0 +1,14 @@
+.env*
+.agent-cache/
+.git/
+data/
+data-private/
+artifacts/
+docs/
+tests/
+migrations/
+scripts/
+SUPABASE*.sql
+SUPABASE*.md
+supabase-schema.sql
+README.md

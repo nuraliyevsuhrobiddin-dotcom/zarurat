@@ -1,4 +1,3 @@
--- Secure upgrade; preserves records.
 -- Apply to the existing database before deploying the new server.
 -- Transactional and repeatable. Preserves business records and existing account roles.
 BEGIN;
