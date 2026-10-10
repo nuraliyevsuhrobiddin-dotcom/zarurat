@@ -183,7 +183,7 @@ function loginDialog(register=false) {
      <label>${isCyr?'Телефон ёки логин':'Telefon yoki login'}</label>
      <div class="auth-input-wrap">
       <svg viewBox="0 0 24 24" class="auth-field-icon"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.14 12 19.79 19.79 0 0 1 1.08 3.38 2 2 0 0 1 3.05 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 16z"/></svg>
-      <input name="login" type="text" autocomplete="username" required placeholder="+998 90 123 45 67">
+      <input name="login" type="text" autocomplete="username" required placeholder="+998 90 123 45 67" value="+998">
      </div>
     </div>
     <div class="auth-field">
@@ -606,7 +606,7 @@ document.addEventListener('submit',async e=>{
   }
   else if(form.id==='recovery-confirm-form'){if(data.password!==data.confirmPassword)throw new Error(tr('Yangi parollar bir xil emas.'));await api('/auth/recovery/confirm',{challenge:form.dataset.challenge,code:data.code,password:data.password});modalClose();if(mobileViewport())location.hash='login';else loginDialog();toast(tr('Parol yangilandi.'));}
   else if(form.id==='track-form'){const result=await api('/track',data);$('#tracking-result').innerHTML=`<div class="divider"></div>${caseReadOnly(result.case,data.token)}`;}
-  else if(form.id==='login-form'||form.id==='register-form'){const register=form.id==='register-form';if(register)data.consent=data.consent==='on';state.user=(await api(register?'/auth/register':'/auth/login',data)).user;modalClose();app.dataset.page='';location.hash='cabinet/overview';await renderRoute();}
+  else if(form.id==='login-form'||form.id==='register-form'){const register=form.id==='register-form';if(register)data.consent=data.consent==='on';else if(data.login){let l=String(data.login).trim().replace(/[\s()-]/g,'');if(/^\d{9}$/.test(l))l='+998'+l;else if(/^998\d{9}$/.test(l))l='+'+l;data.login=l;}state.user=(await api(register?'/auth/register':'/auth/login',data)).user;modalClose();app.dataset.page='';location.hash='cabinet/overview';await renderRoute();}
   else if(form.id==='feedback-form'){await api('/feedback',{...data,number:form.dataset.number,token:form.dataset.token,rating:Number(data.rating)});form.innerHTML=`<div class="notice">${tr("Fikringiz uchun rahmat. Bahoyingiz saqlandi.")}</div>`;toast('Baho saqlandi.');}
   else if(form.id==='case-update-form'){const body={status:data.status,priority:data.priority,coordinatorId:data.coordinatorId?Number(data.coordinatorId):null};if(data.dueAt)body.dueAt=new Date(data.dueAt).toISOString();if(data.note.trim())body.note=data.note.trim();const result=await api(`/cases/${form.dataset.id}`,body,'PATCH');renderCaseDialog(result.case);await renderRoute();toast('Murojaat yangilandi.');}
   else if(form.id==='service-add-form'){const body={title:data.title};if(data.partnerId)body.partnerId=Number(data.partnerId);if(data.price!=='')body.price=Number(data.price);const result=await api(`/cases/${form.dataset.id}/services`,body);renderCaseDialog(result.case);await renderRoute();toast('Xizmat qo‘shildi.');}

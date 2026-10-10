@@ -92,7 +92,9 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         result={status:'ok',checkedAt:new Date().toISOString()};
       } else if (path === '/auth/me' && method === 'GET') result = { user: user ? profile(user) : null, configured: Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) };
       else if (path === '/auth/login' && method === 'POST') {
-        const login = text(body.login, 'Login', 3, 100).toLowerCase().replace(/[\s()-]/g, '');
+        let login = text(body.login, 'Login', 3, 100).toLowerCase().replace(/[\s()-]/g, '');
+        if (/^\d{9}$/.test(login)) login = '+998' + login;
+        else if (/^998\d{9}$/.test(login)) login = '+' + login;
         const password = validatePassword(body.password,1);
         await rateLimit(req, db, 'login', login);
         const found = await rpc('zar_login', { p_login: login, p_password: password });
