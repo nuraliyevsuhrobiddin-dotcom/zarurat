@@ -15,6 +15,23 @@
 
 ## 2. Server muhiti
 
+### Qisqa murojaat formasini yangilash
+
+Mavjud bazada `migrations/003_intake_clarification.sql` ni SQL Editor orqali bajaring.
+U yozuvlarni o‘chirmaydi: koordinator xizmat yo‘nalishi, hudud va qulay vaqtni
+aniqlashtirishi, nazorat muddatini olib tashlashi va mijozlarning barcha murojaatlarini
+to‘g‘ri hisoblashi uchun funksiyalarni yangilaydi. Paketlarning mavjud bazadagi
+Start/Komfort/Premium qiymatlari saqlanadi; sayt va API STANDARD/COMFORT/PREMIUM ko‘rsatadi.
+Yangi baza uchun bu yangilanish `supabase-schema.sql` tarkibiga kiritilgan.
+
+`npm run check:ready` faqat o‘qish orqali server sozlamalari va ushbu migratsiyani
+tekshiradi. Migratsiyasiz yangi aniqlashtirish maydonlari yashiriladi; eski murojaat
+jarayonlari ishlashda davom etadi. Keyin yangilangan saytni Vercelga joylashtiring.
+
+Brauzer sinovlari uchun `npm run qa` alohida vaqtinchalik PostgreSQL bazasini
+ochadi: `http://127.0.0.1:3101`. U `.env` ni yuklamaydi va jonli bazaga yozmaydi.
+Sinov hisoblari `scripts/qa-server.mjs` da. Sinov serverini internetga joylashtirmang.
+
 Vercel Settings ' Environment Variables:
 
 | O'zgaruvchi | Qiymat |
@@ -68,7 +85,7 @@ Xodim yoki hamkor hisobini rahbar kabinetidan yarating. Telefon majburiy.
 
 ## 6. Deploydan keyin tekshirish
 
-Ro'yxatdan o'tish ' murojaat + PDF ' raqam/kod bilan kuzatish ' rahbar
+Ro'yxatdan o'tish ' ism/telefon/qisqa bayon bilan murojaat ' raqam/kod bilan kuzatish ' rahbar
 koordinator/hamkor/xizmat biriktirishi ' barcha xizmatlar yakunlanishi ' mijoz bahosi.
 Ikkinchi mijoz bilan birinchi mijoz tafsilotlari va fayllari ochilmasligini tekshiring.
 Anon kalit bilan users/cases/attachments o'qish ham rad etilishi kerak.
@@ -81,7 +98,7 @@ OTP, Telegram yuborish va bloklash kodi tayyor, hozir o'chirilgan. Faollashtiris
 oldin `migrations/002_accounts_notifications.sql` ni SQL Editor'da bajaring,
 provayder rekvizitlarini serverga kiriting va `FEATURE_STAGE2=true` belgilang.
 Telegram webhook uchun `scripts/configure-telegram.mjs` mavjud; avtomatik ishga tushmaydi.
-To'lovlar provayder va tariflar kelishilguncha o'chirilgan. Antivirus hali yo'q.
+Payme Merchant API va 99 000 / 199 000 / 399 000 so‘mlik oylik tariflar tayyor. To‘lovni yoqish uchun [Payme yo‘riqnomasi](PAYME-ISHGA-TUSHIRISH.md) bo‘yicha 004 migratsiyasini va kassa kalitlarini sozlang. Antivirus hali yo'q.
 Operatorlar uchun faqat faol shartnomali hamkor yangi xizmatga biriktiriladi.
 Yakunlangan yoki bekor qilingan murojaat qayta ochilmaydi. Paket 1 yakunlangan keys = 1 birlik.
 Fayllar 3 ta, jami 2.8 MiB. Katta fayllar uchun kelgusida private Storage kerak.

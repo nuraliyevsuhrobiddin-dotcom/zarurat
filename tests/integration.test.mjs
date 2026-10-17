@@ -4,62 +4,20 @@ import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { createHandler } from '../server/api.mjs';
-import { HttpError } from '../server/db.mjs';
+import { testDatabase } from './helpers/database.mjs';
 
 // In-memory PostgreSQL adapter for exercising the HTTP handler against real SQL.
 // Production uses PostgREST; this adapter is deliberately confined to tests.
 let pg, handler;
 const env={PUBLIC_ORIGIN:'https://test.example',SESSION_SECRET:'integration-test-session-secret'};
-const tables=new Set(['sessions','users','cases','services','history','attachments','feedback','partners','packages','package_usage','notifications']);
-async function db(resource,{method='GET',body,query=''}={}){
- if(resource.startsWith('rpc/')){
-  const fn=resource.slice(4);assert.match(fn,/^zar_[a-z_]+$/);
-  const entries=Object.entries(body||{});
-  const args=entries.map(([key],i)=>{assert.match(key,/^p_[a-z_]+$/);return `${key}=>$${i+1}`;}).join(',');
-  const values=entries.map(([,v])=>typeof v==='object'&&v!==null?JSON.stringify(v):v);
-  try{return (await pg.query(`SELECT ${fn}(${args}) AS value`,values)).rows[0].value;}
-  catch(error){if(error.code==='P0001')throw new HttpError(400,error.message);throw error;}
- }
- assert.ok(tables.has(resource));
- const params=new URLSearchParams(query), values=[],clauses=[];
- for(const [key,value]of params){
-  if(['select','order','limit','offset'].includes(key))continue;
-  assert.match(key,/^[a-z_]+$/);
-  if(value.startsWith('in.(')){
-   const items=value.slice(4,-1).split(',');clauses.push(`${key} IN (${items.map(v=>{values.push(v);return '$'+values.length;}).join(',')})`);
-  }else{
-   const dot=value.indexOf('.'),op=value.slice(0,dot);assert.ok(['eq','gt','lt'].includes(op));values.push(value.slice(dot+1));clauses.push(`${key}${{eq:'=',gt:'>',lt:'<'}[op]}$${values.length}`);
-  }
- }
- const where=clauses.length?' WHERE '+clauses.join(' AND '):'';
- if(method==='POST'){
-  const keys=Object.keys(body);keys.forEach(k=>assert.match(k,/^[a-z_]+$/));
-  return (await pg.query(`INSERT INTO ${resource}(${keys.join(',')}) VALUES(${keys.map((k,i)=>'$'+(i+1)).join(',')}) RETURNING *`,keys.map(k=>body[k]))).rows;
- }
- if(method==='DELETE')return(await pg.query(`DELETE FROM ${resource}${where} RETURNING *`,values)).rows;
- if(method==='PATCH'){
-  const sets=Object.entries(body).map(([key,value])=>{assert.match(key,/^[a-z_]+$/);values.push(value);return `${key}=$${values.length}`;});
-  return(await pg.query(`UPDATE ${resource} SET ${sets.join(',')}${where} RETURNING *`,values)).rows;
- }
- let suffix='';
- if(params.has('order')){const [col,dir]=params.get('order').split('.');assert.match(col,/^[a-z_]+$/);suffix+=` ORDER BY ${col} ${dir==='desc'?'DESC':'ASC'}`;}
- for(const key of ['limit','offset'])if(params.has(key))suffix+=` ${key.toUpperCase()} ${Number(params.get(key))}`;
- const rows=(await pg.query(`SELECT * FROM ${resource}${where}${suffix}`,values)).rows;
- if(resource==='cases')for(const c of rows){
-  c.coordinator=(await pg.query('SELECT name FROM users WHERE id=$1',[c.coordinator_id])).rows[0];
-  c.services=(await pg.query('SELECT * FROM services WHERE case_id=$1',[c.id])).rows;
-  for(const s of c.services)s.partners=(await pg.query('SELECT name FROM partners WHERE id=$1',[s.partner_id])).rows[0];
-  c.history=(await pg.query('SELECT * FROM history WHERE case_id=$1',[c.id])).rows;
-  c.attachments=(await pg.query('SELECT id,name,type,size FROM attachments WHERE case_id=$1',[c.id])).rows;
-  c.feedback=(await pg.query('SELECT * FROM feedback WHERE case_id=$1',[c.id])).rows[0]||null;
- }
- return rows;
-}
+let db;
+
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});
  await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
  await pg.exec(await readFile('supabase-schema.sql','utf8'));
  await pg.exec(`INSERT INTO users(login,name,phone,password_hash,role) VALUES('boss','Rahbar','+998901111111',extensions.crypt('secure-password',extensions.gen_salt('bf',4)),'director');`);
+ db=testDatabase(pg);
  handler=createHandler({db,env});
 });
 after(async()=>{await pg?.close();});
@@ -116,4 +74,84 @@ test('registration, request, tracking, file access, ownership, coordinator, comp
  assert.equal((await call('/auth/login',{method:'POST',body:{login:'+998902222222',password:'new-client-password'}})).statusCode,200);
  assert.equal((await call('/auth/logout',{method:'POST',body:{},cookie})).statusCode,200);
  assert.equal((await call('/auth/me',{cookie})).data.user,null);
+});
+
+test('coordinator clarifies the short request, clears a deadline and preserves audited history',async()=>{
+ const boss=await call('/auth/login',{method:'POST',body:{login:'boss',password:'secure-password'}});
+ const cookie=boss.headers['Set-Cookie'].split(';')[0];
+ const created=await call('/requests',{method:'POST',body:{name:'Qarshi mijoz',phone:'55 406 77 55',region:'Qashqadaryo',category:'other',description:'Qaysi yordam kerakligini aniqlash',consent:true}});
+ const id=created.data.case.id;
+ assert.equal((await call('/auth/options',{cookie})).data.clarificationEnabled,true);
+ const update=await call(`/cases/${id}`,{method:'PATCH',cookie,body:{category:'legal',preferredTime:'14:00 dan keyin',dueAt:'2027-01-01T10:00:00.000Z'}});
+ assert.equal(update.statusCode,200);assert.equal(update.data.case.category,'legal');
+ assert.equal(update.data.case.preferredTime,'14:00 dan keyin');
+ assert.ok(update.data.case.history.some(h=>h.kind==='clarification'));
+ const cleared=await call(`/cases/${id}`,{method:'PATCH',cookie,body:{dueAt:null}});
+ assert.equal(cleared.statusCode,200);assert.equal(cleared.data.case.dueAt,null);
+ assert.ok(cleared.data.case.history.some(h=>h.kind==='deadline'));
+ // Upgrade is repeatable and does not remove the request or existing history.
+ await pg.exec(await readFile('migrations/003_intake_clarification.sql','utf8'));
+ assert.equal((await call(`/cases/${id}`,{cookie})).data.case.category,'legal');
+});
+
+test('public package names work with legacy storage and client counts cover more than one page',async()=>{
+ const boss=await call('/auth/login',{method:'POST',body:{login:'boss',password:'secure-password'}});
+ const cookie=boss.headers['Set-Cookie'].split(';')[0];
+ const client=(await pg.query("SELECT id FROM users WHERE role='client' ORDER BY id LIMIT 1")).rows[0].id;
+ const saved=await call('/packages',{method:'POST',cookie,body:{clientId:client,tier:'COMFORT',expiresAt:'2027-12-31T00:00:00.000Z',limit:5,members:['Test oila']}});
+ assert.equal(saved.statusCode,200);assert.equal(saved.data.package.tier,'COMFORT');
+ assert.equal((await pg.query('SELECT tier FROM packages WHERE client_id=$1',[client])).rows[0].tier,'Komfort');
+ assert.equal((await call('/packages',{cookie})).data.packages.find(p=>p.clientId===client).tier,'COMFORT');
+ await pg.query(`INSERT INTO cases(number,name,phone,region,category,description,client_id,tracking_token) SELECT 'ZAR-'||(800000+n)::text,'Count test','+998901234567','Qashqadaryo','other','Count across all pages',$1,encode(extensions.gen_random_bytes(32),'hex') FROM generate_series(1,55) n`,[client]);
+ const clients=(await call('/clients',{cookie})).data.clients;
+ const actual=Number((await pg.query('SELECT count(*) AS total FROM cases WHERE client_id=$1',[client])).rows[0].total);
+ assert.equal(clients.find(c=>c.id===client).caseCount,actual);assert.ok(actual>50);
+ const first=await call(`/cases?clientId=${client}&offset=0`,{cookie});
+ const second=await call(`/cases?clientId=${client}&offset=50`,{cookie});
+ assert.equal(first.data.hasMore,true);assert.ok(second.data.cases.length>0);
+ assert.ok([...first.data.cases,...second.data.cases].every(c=>c.clientId===client));
+});
+
+test('staff usernames containing hyphens can sign in',async()=>{
+ await pg.exec("INSERT INTO users(name,phone,login,password_hash,role) VALUES('QA operator','+998905555555','qa-operator',extensions.crypt('test-password',extensions.gen_salt('bf',4)),'operator')");
+ const result=await call('/auth/login',{method:'POST',body:{login:'QA-Operator',password:'test-password'}});
+ assert.equal(result.statusCode,200);assert.equal(result.data.user.login,'qa-operator');
+});
+
+test('customer requests, customer accounts and staff accounts remain separate',async()=>{
+ const boss=await call('/auth/login',{method:'POST',body:{login:'boss',password:'secure-password'}});
+ const cookie=boss.headers['Set-Cookie'].split(';')[0];
+ const created=await call('/requests',{method:'POST',cookie,body:{name:'Separate customer',phone:'+998906666666',region:'Qashqadaryo',category:'other',description:'Customer needs help with documents',consent:true}});
+ assert.equal(created.statusCode,200);
+ const id=created.data.case.id;
+ const detail=(await call(`/cases/${id}`,{cookie})).data.case;
+ assert.equal(detail.name,'Separate customer');assert.equal(detail.clientId,null);
+ const clients=(await call('/clients',{cookie})).data.clients;
+ assert.ok(clients.every(u=>u.role==='client'));
+ assert.ok(!clients.some(u=>u.id===boss.data.user.id));
+ const staff=(await call('/users',{cookie})).data.users;
+ assert.ok(staff.every(u=>['director','operator','partner'].includes(u.role)));
+ const team=(await call('/team',{cookie})).data.users;
+ assert.ok(team.every(u=>['director','operator'].includes(u.role)));
+ const assigned=await call(`/cases/${id}`,{method:'PATCH',cookie,body:{coordinatorId:boss.data.user.id}});
+ assert.equal(assigned.statusCode,200);assert.equal(assigned.data.case.coordinatorRole,'director');
+ assert.equal(assigned.data.case.name,'Separate customer');
+ const customer=await call('/auth/login',{method:'POST',body:{login:'+998902222222',password:'new-client-password'}});
+ const customerCookie=customer.headers['Set-Cookie'].split(';')[0];
+ for(const path of ['/users','/clients','/team','/stats'])assert.equal((await call(path,{cookie:customerCookie})).statusCode,403);
+ assert.equal((await call(`/cases/${id}`,{cookie:customerCookie})).statusCode,404);
+});
+
+test('staff notification feed includes audited activity without exposing internal note text',async()=>{
+ const boss=await call('/auth/login',{method:'POST',body:{login:'boss',password:'secure-password'}});
+ const cookie=boss.headers['Set-Cookie'].split(';')[0];
+ const created=await call('/requests',{method:'POST',cookie,body:{name:'Notification customer',phone:'+998907777777',region:'Qashqadaryo',category:'other',description:'Notification activity test',consent:true}});
+ const id=created.data.case.id;
+ const changed=await call(`/cases/${id}`,{method:'PATCH',cookie,body:{coordinatorId:boss.data.user.id,dueAt:'2027-01-02T10:00:00.000Z',category:'legal',note:'PRIVATE NOTE MUST NOT ENTER FEED'}});
+ assert.equal(changed.statusCode,200);
+ const feed=await call('/notifications',{cookie});assert.equal(feed.statusCode,200);
+ const activity=feed.data.notifications.filter(n=>n.case_id===id&&n.source==='internal');
+ assert.deepEqual(new Set(activity.map(n=>n.event)),new Set(['case.assignment_changed','case.deadline_changed','case.clarified']));
+ assert.ok(activity.every(n=>n.status==='recorded'&&n.caseNumber===created.data.case.number));
+ assert.ok(!JSON.stringify(feed.data).includes('PRIVATE NOTE MUST NOT ENTER FEED'));
 });

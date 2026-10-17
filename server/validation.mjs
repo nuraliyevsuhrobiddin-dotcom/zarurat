@@ -1,5 +1,6 @@
 import { HttpError } from './db.mjs';
 import { publicConfig } from '../public/supabase-api.js';
+import { normalizePhone } from '../public/auth-input.js';
 export const fail = message => { throw new HttpError(400, message); };
 export function text(value, label, min = 1, max = 200) {
   if (typeof value !== 'string') fail(`${label}ni kiriting.`);
@@ -8,7 +9,7 @@ export function text(value, label, min = 1, max = 200) {
   return result;
 }
 export function phone(value) {
-  const result = String(value || '').replace(/[\s()-]/g, '');
+  const result = normalizePhone(value);
   if (!/^\+998\d{9}$/.test(result)) fail('Telefonni +998 va 9 ta raqam shaklida kiriting.');
   return result;
 }
@@ -37,6 +38,7 @@ export function attachments(value = []) {
   if (!Array.isArray(value) || value.length > 3) fail('Jami 3 tagacha fayl biriktiring.');
   let total = 0;
   return value.map(file => {
+    if (!file || typeof file !== 'object' || Array.isArray(file)) fail('Fayl ma’lumoti noto‘g‘ri.');
     const name = text(file.name, 'Fayl nomi', 1, 200);
     const type = choice(file.type, allowedTypes, 'Fayl turi');
     if (typeof file.data !== 'string' || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.data)) fail('Fayl mazmuni noto‘g‘ri.');

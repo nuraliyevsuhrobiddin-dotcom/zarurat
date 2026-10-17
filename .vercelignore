@@ -1,5 +1,10 @@
 .env*
 .agent-cache/
+.cache/
+.agents/
+.codex/
+.aws/
+node_modules/
 .git/
 data/
 data-private/

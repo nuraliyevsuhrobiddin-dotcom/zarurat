@@ -3,6 +3,7 @@ import {gzipSync,gunzipSync} from 'node:zlib';
 import {HttpError} from './db.mjs';
 
 const tables=['users','partners','cases','services','history','attachments','feedback','packages','package_usage','notifications'];
+const paymentTables=['payment_orders','payme_transactions','family_subscriptions','subscription_usage'];
 const bucketName='zaruriyat-backups';
 const magic=Buffer.from('ZARBKP01');
 function keyBytes(secret){
@@ -41,14 +42,18 @@ export async function runBackup(env,{fetcher=fetch,now=new Date()}={}){
  const existing=await request(`/storage/v1/object/info/${bucketName}/${objectName}`,{method:'GET'});
  if(existing.ok)return {ok:true,alreadyExists:true,object:objectName};
  if(![400,404].includes(existing.status))throw new HttpError(503,'Zaxira holatini tekshirib bo‘lmadi.');
- const snapshot={version:1,schemaVersion:'0.4.0',createdAt:now.toISOString(),consistency:'application logical backup; per-table reads',tables:{}};
- const counts={};let rawBytes=0;
- for(const table of tables){
+ const snapshot={version:1,schemaVersion:'0.5.0',createdAt:now.toISOString(),consistency:'application logical backup; per-table reads',tables:{}};
+ const counts={};let rawBytes=0;const missingPaymentTables=[];
+ for(const table of [...tables,...paymentTables]){
   const rows=[];const order=table==='feedback'?'case_id':'id';
   for(let offset=0;;offset+=500){
    const params=new URLSearchParams({select:'*',order:`${order}.asc`,limit:'500',offset:String(offset),created_at:`lte.${now.toISOString()}`});
    const response=await request(`/rest/v1/${table}?${params}`);
-   if(!response.ok)throw new HttpError(503,'Zaxira ma’lumotlarini olish imkoni bo‘lmadi.');
+   if(!response.ok){
+    const error=await response.json().catch(()=>null);
+    if(offset===0&&paymentTables.includes(table)&&response.status===404&&error?.code==='PGRST205'){missingPaymentTables.push(table);break;}
+    throw new HttpError(503,'Zaxira ma’lumotlarini olish imkoni bo‘lmadi.');
+   }
    const page=await response.json();rawBytes+=Buffer.byteLength(JSON.stringify(page));
    if(rawBytes>52428800)throw new HttpError(503,'Katta baza uchun PostgreSQL zaxiralash infratuzilmasi kerak.');
    rows.push(...page);
@@ -57,6 +62,7 @@ export async function runBackup(env,{fetcher=fetch,now=new Date()}={}){
   }
   snapshot.tables[table]=rows;counts[table]=rows.length;
  }
+ if(missingPaymentTables.length&&(missingPaymentTables.length!==paymentTables.length||env.FEATURE_PAYME==='true'))throw new HttpError(503,'Payme zaxirasi uchun baza migratsiyasi to‘liq o‘rnatilmagan.');
  const encrypted=encryptBackup(snapshot,env.BACKUP_ENCRYPTION_KEY);
  if(encrypted.length>52428800)throw new HttpError(503,'Zaxira hajmi cheklovdan oshdi.');
  const response=await request(`/storage/v1/object/${bucketName}/${objectName}`,{method:'POST',headers:{'Content-Type':'application/octet-stream','x-upsert':'false'},body:encrypted});

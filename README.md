@@ -24,13 +24,21 @@ So'ng `.env.example` asosida `.env` tayyorlang va `npm install`, `npm start`.
 Statik `serve public` backend funksiyalarini ishlatmaydi.
 
 To'liq ko'rsatma: [joylashtirish va migratsiya](docs/ISHGA-TUSHIRISH.md).
+Payme to‘lovi va oylik tariflar: [sozlash, test va ishga tushirish](docs/PAYME-ISHGA-TUSHIRISH.md). Kalitlar uchun `.env` va `.env.example` da bo‘sh maydonlar bor.
 Tekshirish: `npm test` ' Node API va PostgreSQL/PGlite integratsion testlar.
+
+Qarshidagi dastlabki murojaat formasi ism, telefon va vaziyatning qisqacha bayonini
+so‘raydi. Koordinator keyingi ma’lumotlarni kabinetda aniqlashtiradi.
+Mavjud baza uchun `migrations/003_intake_clarification.sql` kerak.
+`npm run check:ready` bazaga faqat o‘qish orqali tayyorlikni tekshiradi;
+`npm run qa` jonli bazadan ajratilgan brauzer sinov serverini ochadi.
+Paketlar barcha ekranlarda STANDARD, COMFORT va PREMIUM nomlari bilan ko‘rsatiladi.
 
 ## Chegaralar
 
 Telegram/SMS adapterlari, OTP bilan tiklash va hisobni bloklash tayyor, lekin
 `002_accounts_notifications.sql` hamda provayder sozlamalarisiz o'chirilgan.
-O'z parolini o'zgartirish faol; to'lov integratsiyasi hali yo'q. Fayllar bazada base64,
+O'z parolini o'zgartirish faol; Payme Merchant API integratsiyasi tayyor, kalitlar va kassa sozlangach yoqiladi. Fayllar bazada base64,
 3 ta va jami 2.8 MiB; haqiqiy MIME signaturasi tekshiriladi, antivirus emas.
 Paket yangilash foydalanish tarixini saqlaydi; yangi billing davri avtomatik ochilmaydi.
 Kabinet 50 tadan murojaat yuklaydi; qidiruv va filtrlar serverda barcha ruxsatli yozuvlarga qo'llanadi.

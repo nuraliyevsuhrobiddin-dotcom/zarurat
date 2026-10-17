@@ -2,6 +2,7 @@ import { createDatabase, HttpError, query } from './db.mjs';
 import { digest, sessionCookie, currentUser, createSession, hashPassword, requireRole, validateOrigin, rateLimit } from './security.mjs';
 import { compare } from 'bcryptjs';
 import { caseFilters } from './search.mjs';
+import { notificationFeed } from './notification-feed.mjs';
 import {runBackup} from './backup.mjs';
 import {requireJob} from './jobs.mjs';
 import {handleAccount} from './account.mjs';
@@ -9,12 +10,15 @@ import {stage2,smsReady,telegramReady} from './providers.mjs';
 import {handleTelegramWebhook,drainNotifications} from './telegram.mjs';
 import { text, phone, password as validatePassword, integer, choice, timestamp, requestInput, fail } from './validation.mjs';
 import { publicConfig } from '../public/supabase-api.js';
+import { packageName, packageValue, packageTiers } from '../public/package-tiers.js';
+import { normalizeLogin } from '../public/auth-input.js';
+import { handlePaymeWebhook, handlePaymentRoute, paymeError, paymeReady } from './payme.mjs';
 
 const staff = ['director', 'operator'];
 const terminal = status => ['completed', 'cancelled'].includes(status);
 const profile = u => ({ id: u.id, name: u.name, phone: u.phone, login: u.login, role: u.role, partnerId: u.partner_id, blocked: Boolean(u.blocked_at), phoneVerified: Boolean(u.phone_verified_at), telegramConnected: Boolean(u.telegram_chat_id) });
 const selectUsers = 'id,name,phone,login,role,partner_id';
-const caseSelect = '*,coordinator:users!cases_coordinator_id_fkey(name),services(*,partners(name)),history(*),attachments(id,name,type,size),feedback(*)';
+const caseSelect = '*,coordinator:users!cases_coordinator_id_fkey(name,role),services(*,partners(name)),history(*),attachments(id,name,type,size),feedback(*)';
 
 export function formatCase(c, user) {
   const isStaff = staff.includes(user?.role);
@@ -23,7 +27,7 @@ export function formatCase(c, user) {
     id: c.id, number: c.number, name: c.name, phone: c.phone, region: c.region,
     category: c.category, description: c.description, preferredTime: c.preferred_time,
     status: c.status, priority: c.priority, coordinatorId: c.coordinator_id,
-    coordinatorName: c.coordinator?.name || null, dueAt: c.due_at,
+    coordinatorName: c.coordinator?.name || null, coordinatorRole: c.coordinator?.role || null, dueAt: c.due_at,
     createdAt: c.created_at, updatedAt: c.updated_at, clientId: c.client_id,
     ...(user?.role === 'client' && user.id === c.client_id ? { trackingToken: c.tracking_token } : {}),
     services: (c.services || []).filter(s => !isPartner || s.partner_id === user.partner_id).map(s => ({
@@ -68,6 +72,17 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
       const rewritten = req.query?.route || url.searchParams.get('route');
       const path = rewritten ? '/' + (Array.isArray(rewritten) ? rewritten.join('/') : rewritten) : url.pathname.replace(/^\/api/, '');
       const method = req.method;
+      if (path === '/payme') {
+        let payload=req.body;
+        if (typeof payload === 'string' || Buffer.isBuffer(payload)) {
+          try { payload=JSON.parse(String(payload)); }
+          catch { res.statusCode=200;res.end(JSON.stringify({jsonrpc:'2.0',id:null,...paymeError(-32700,'JSON noto‘g‘ri.')}));return; }
+        }
+        const reply=method==='POST' && Buffer.byteLength(JSON.stringify(payload??{}))<=65536
+          ? await handlePaymeWebhook(req,payload,db,env)
+          : {jsonrpc:'2.0',id:null,...paymeError(-32600,'So‘rov noto‘g‘ri.')};
+        res.statusCode=200;res.end(JSON.stringify(reply));return;
+      }
       if (!['GET','POST','PATCH','HEAD'].includes(method)||(method==='HEAD'&&path!=='/health')) throw new HttpError(405, 'Bu usul qo‘llab-quvvatlanmaydi.');
       if(path!=='/telegram/webhook')validateOrigin(req, env);
       const body = req.body || {};
@@ -78,8 +93,10 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
       const rpc = (name, args) => db(`rpc/${name}`, { method: 'POST', body: args });
       let result;
       const accountResult=await handleAccount({path,method,user,body,req,db,env});
+      const paymentResult=await handlePaymentRoute({path,method,user,body,req,db,env});
 
-      if(accountResult!==undefined)result=accountResult;
+      if(paymentResult!==undefined)result=paymentResult;
+      else if(accountResult!==undefined)result=accountResult;
       else if(path==='/telegram/webhook'&&method==='POST')result=await handleTelegramWebhook(req,body,db,env);
       else if(path==='/jobs/notifications'&&method==='GET'){
         requireJob(req,env);result=await drainNotifications(db,env);
@@ -92,9 +109,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         result={status:'ok',checkedAt:new Date().toISOString()};
       } else if (path === '/auth/me' && method === 'GET') result = { user: user ? profile(user) : null, configured: Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) };
       else if (path === '/auth/login' && method === 'POST') {
-        let login = text(body.login, 'Login', 3, 100).toLowerCase().replace(/[\s()-]/g, '');
-        if (/^\d{9}$/.test(login)) login = '+998' + login;
-        else if (/^998\d{9}$/.test(login)) login = '+' + login;
+        const login = normalizeLogin(text(body.login, 'Login', 3, 100));
         const password = validatePassword(body.password,1);
         await rateLimit(req, db, 'login', login);
         const found = await rpc('zar_login', { p_login: login, p_password: password });
@@ -103,7 +118,8 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         res.setHeader('Set-Cookie',sessionCookie(value,secure));
         result={user:profile(found)};
       } else if(path==='/auth/options'&&method==='GET') {
-        result={stage2Enabled:stage2(env),smsEnabled:smsReady(env),telegramEnabled:telegramReady(env),paymentsEnabled:false};
+        const capabilities=user&&staff.includes(user.role)?await rpc('zar_capabilities',{}).catch(()=>null):null;
+        result={stage2Enabled:stage2(env),smsEnabled:smsReady(env),telegramEnabled:telegramReady(env),paymentsEnabled:paymeReady(env),clarificationEnabled:capabilities?.clarification===true};
       } else if(path==='/auth/password'&&method==='POST') {
         requireRole(user);
         await rateLimit(req,db,'password',String(user.id));
@@ -172,7 +188,14 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           const changes = {};
           if (body.status !== undefined) changes.status = choice(body.status,publicConfig.statuses,'Holat');
           if (body.priority !== undefined) changes.priority = choice(body.priority,['normal','urgent'],'Muhimlik');
-          if (body.dueAt !== undefined) changes.due_at = timestamp(body.dueAt);
+          if (body.dueAt !== undefined) changes.due_at = body.dueAt===null ? null : timestamp(body.dueAt);
+          if (body.category !== undefined) changes.category = choice(body.category,publicConfig.categories.map(c=>c.id),'Yo‘nalish');
+          if (body.region !== undefined) changes.region = choice(body.region,publicConfig.regions,'Hudud');
+          if (body.preferredTime !== undefined) changes.preferred_time = text(body.preferredTime,'Qulay vaqt',1,150);
+          if (body.category!==undefined || body.region!==undefined || body.preferredTime!==undefined || body.dueAt===null) {
+            const capabilities=await rpc('zar_capabilities',{}).catch(()=>null);
+            if(capabilities?.clarification!==true)throw new HttpError(503,'Murojaat ma’lumotlarini yangilash uchun baza yangilanishi kerak. Administratorga murojaat qiling.');
+          }
           if (body.coordinatorId !== undefined) changes.coordinator_id = body.coordinatorId === null ? null : integer(body.coordinatorId,'Koordinator');
           if (body.note) changes.note = text(body.note,'Izoh',1,2000);
           await rpc('zar_update_case', { p_id: integer(caseMatch[1],'ID'), p_changes: changes, p_actor_id: user.id });
@@ -196,11 +219,12 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           requireRole(user,path === '/users' ? ['director'] : staff);
           const role = path === '/team' ? 'in.(operator,director)' : path === '/clients' ? 'eq.client' : 'in.(operator,director,partner)';
           result = { [path === '/clients' ? 'clients' : 'users']: (await db('users',{query:query({select:selectUsers+(stage2(env)?',blocked_at,phone_verified_at,telegram_chat_id':''),role,order:'id.desc'})})).map(profile) };
+          if(path==='/clients'){const counts=await rpc('zar_client_counts',{}).catch(()=>null);result.clients=result.clients.map(client=>({...client,caseCount:counts?Number(counts[client.id]||0):null}));}
         } else if (path === '/users' && method === 'POST') {
           requireRole(user,['director']);
           const password = validatePassword(body.password);
           const role = choice(body.role,['operator','partner'],'Rol');
-          result = { user: profile(await rpc('zar_create_user',{p_name:text(body.name,'Ism',2,100),p_phone:phone(body.phone),p_login:text(body.login,'Login',3,100).toLowerCase(),p_password:password,p_role:role,p_partner_id:role==='partner'?integer(body.partnerId,'Hamkor'):null})) };
+          result = { user: profile(await rpc('zar_create_user',{p_name:text(body.name,'Ism',2,100),p_phone:phone(body.phone),p_login:normalizeLogin(text(body.login,'Login',3,100)),p_password:password,p_role:role,p_partner_id:role==='partner'?integer(body.partnerId,'Hamkor'):null})) };
         } else if (/^\/users\/\d+\/password$/.test(path)&&method==='POST') {
           requireRole(user,['director']);
           await rateLimit(req,db,'admin-password',String(user.id));
@@ -213,20 +237,25 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           result={ok:true};
         } else if (path === '/packages' && method === 'GET') {
           requireRole(user,[...staff,'client']);
-          const filters={select:'*,users(name),package_usage(id)'};
+          const filters={select:'*,users(name),package_usage(id,case_id)'};
           if(user.role==='client')filters.client_id=`eq.${user.id}`;
-          result={packages:(await db('packages',{query:query(filters)})).map(p=>({id:p.id,clientId:p.client_id,clientName:p.users?.name,tier:p.tier,expiresAt:p.expires_at,limit:p.service_limit,used:p.package_usage.length,remaining:Math.max(0,p.service_limit-p.package_usage.length),status:new Date(p.expires_at)<new Date()?'expired':p.package_usage.length>=p.service_limit?'exhausted':'active',members:p.members}))};
+          result={packages:(await db('packages',{query:query(filters)})).map(p=>({id:p.id,clientId:p.client_id,clientName:p.users?.name,tier:packageName(p.tier),expiresAt:p.expires_at,limit:p.service_limit,used:p.package_usage.length,usedCaseIds:p.package_usage.map(u=>u.case_id),remaining:Math.max(0,p.service_limit-p.package_usage.length),status:new Date(p.expires_at)<new Date()?'expired':p.package_usage.length>=p.service_limit?'exhausted':'active',members:p.members}))};
         } else if (path === '/packages' && method === 'POST') {
           requireRole(user,staff);
           if(!Array.isArray(body.members)||body.members.length>30)fail('Oila a’zolari ro‘yxati noto‘g‘ri.');
-          result={package:await rpc('zar_save_package',{p_client_id:integer(body.clientId,'Mijoz'),p_tier:choice(body.tier,['Start','Komfort','Premium'],'Paket'),p_expires_at:timestamp(body.expiresAt),p_limit:integer(body.limit,'Limit',1,1000),p_members:body.members.map(m=>text(m,'A’zo',2,100))})};
+          const saved=await rpc('zar_save_package',{p_client_id:integer(body.clientId,'Mijoz'),p_tier:choice(packageValue(body.tier),packageTiers.map(item=>item.id),'Paket'),p_expires_at:timestamp(body.expiresAt),p_limit:integer(body.limit,'Limit',1,1000),p_members:body.members.map(m=>text(m,'A’zo',2,100))});
+          result={package:{...saved,tier:packageName(saved.tier)}};
         } else if (packageUse && method === 'POST') {
           requireRole(user,staff);
           await rpc('zar_use_package',{p_id:integer(packageUse[1],'Paket'),p_case_id:integer(body.caseId,'Murojaat'),p_actor_id:user.id});
           result={ok:true};
         } else if (path === '/notifications' && method === 'GET') {
           requireRole(user,staff);
-          result={notifications:(await db('notifications',{query:query({select:'*,cases(number)',order:'id.desc',limit:100})})).map(n=>({...n,caseNumber:n.cases?.number,recipientPhone:n.recipient_phone,createdAt:n.created_at}))};
+          const [deliveries,activity]=await Promise.all([
+            db('notifications',{query:query({select:'*,cases(number)',order:'id.desc',limit:100})}),
+            db('history',{query:query({select:'id,case_id,kind,created_at,cases(number,phone)',kind:'in.(assignment,deadline,clarification,package)',order:'id.desc',limit:100})})
+          ]);
+          result={notifications:notificationFeed(deliveries,activity)};
         } else if (path === '/stats' && method === 'GET') {
           requireRole(user,staff);
           result={stats:await rpc('zar_stats',{})};

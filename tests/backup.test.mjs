@@ -24,6 +24,7 @@ test('backup refuses public storage and never uploads plaintext',async()=>{
  const result=await runBackup(env,{fetcher,now:new Date('2026-10-10T01:00:00Z')});
  assert.equal(result.ok,true);assert.ok(Buffer.isBuffer(uploaded));
  assert.equal(decryptBackup(uploaded,secret).tables.cases.length,1);
+ for(const table of ['payment_orders','payme_transactions','family_subscriptions','subscription_usage'])assert.equal(decryptBackup(uploaded,secret).tables[table].length,1);
  await assert.rejects(runBackup(env,{fetcher:async()=>Response.json({public:true})}));
 });
 test('daily backup is idempotent and unauthenticated jobs are rejected',async()=>{

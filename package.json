@@ -6,6 +6,8 @@
   "description": "ZARURIYAT xizmatlarni muvofiqlashtirish platformasi",
   "scripts": {
     "start": "node --env-file-if-exists=.env server/local.mjs",
+    "qa": "node scripts/qa-server.mjs",
+    "check:ready": "node --env-file-if-exists=.env scripts/check-readiness.mjs",
     "test": "node --test --test-isolation=none tests/*.test.mjs"
   },
   "engines": {

@@ -4,6 +4,8 @@ import { createHandler,formatCase } from '../server/api.mjs';
 import { attachments,requestInput,integer,password } from '../server/validation.mjs';
 import { digest,sessionCookie,sessionSignature } from '../server/security.mjs';
 import { hashSync } from 'bcryptjs';
+import { normalizeLogin, normalizePhone } from '../public/auth-input.js';
+import { packageName, packageValue } from '../public/package-tiers.js';
 
 const env={PUBLIC_ORIGIN:'https://zaruriyat.example',SESSION_SECRET:'unit-test-session-secret'};
 const testHash=hashSync('long-password',4);
@@ -65,4 +67,21 @@ test('health endpoint supports HEAD and backup jobs require a secret',async()=>{
  assert.equal(healthy.statusCode,200);assert.equal(healthy.data,null);
  assert.match(healthy.headers['Cache-Control'],/s-maxage=30/);
  assert.equal((await request('/jobs/backup')).statusCode,401);
+});
+
+test('formatted phones normalize without changing staff login punctuation',()=>{
+ assert.equal(normalizeLogin('  QA-Operator  '),'qa-operator');
+ assert.equal(normalizeLogin('+998 (55) 406-77-55'),'+998554067755');
+ assert.equal(normalizePhone('55 406 77 55'),'+998554067755');
+ assert.equal(normalizePhone('998554067755'),'+998554067755');
+ assert.equal(packageName('Start'),'STANDARD');
+ assert.equal(packageValue('COMFORT'),'Komfort');
+ for(const value of [null,undefined,[],42])assert.throws(()=>attachments([value]),error=>error.status===400);
+});
+
+test('clarification refuses an old database instead of silently discarding coordinator changes',async()=>{
+ const value='a'.repeat(64);const cookie=`zar_session=${value}.${sessionSignature(value,1,testHash,env)}`;
+ const db=async resource=>resource==='sessions'?[{user_id:1}]:resource==='users'?[{id:1,role:'director',password_hash:testHash}]:null;
+ const result=await request('/cases/1',{method:'PATCH',cookie,headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json',cookie},body:{category:'legal'},db});
+ assert.equal(result.statusCode,503);
 });

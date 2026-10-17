@@ -1,7 +1,7 @@
 {
   "name": "ZARURIYAT — Onlayn Xizmatlar Platformasi",
   "short_name": "ZARURIYAT",
-  "description": "Xizmatlarni muvofiqlashtirish va muammolarni hal etish milliy onlayn platformasi.",
+  "description": "Qarshida oilangiz uchun kerakli xizmatlarni koordinator bilan tashkil qiling.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f7f9fc",
