@@ -23,7 +23,7 @@ const begin=(proof,id)=>hook(msg(id,{text:'/start r_'+proof}));
 const contact=(id,phone,extra={})=>hook(msg(id,{contact:{phone_number:phone,user_id:id},...extra}));
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
- for(const file of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/007_telegram_registration.sql'])await pg.exec(await readFile(file,'utf8'));
+ for(const file of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/007_telegram_registration.sql','migrations/008_telegram_contact_recovery.sql'])await pg.exec(await readFile(file,'utf8'));
  handler=createHandler({db:testDatabase(pg),env});
 });
 after(async()=>{await pg?.close()});

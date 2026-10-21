@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { HttpError } from '../../server/db.mjs';
-const tables=new Set(['sessions','users','cases','services','history','attachments','feedback','partners','packages','package_usage','notifications','payment_orders','payme_transactions','family_subscriptions','subscription_usage','telegram_links','telegram_recovery','telegram_registrations']);
+const tables=new Set(['sessions','users','cases','services','history','attachments','feedback','partners','packages','package_usage','notifications','payment_orders','payme_transactions','family_subscriptions','subscription_usage','telegram_links','telegram_recovery','telegram_recovery_contacts','telegram_registrations']);
 function splitConditions(value){
  let depth=0,quoted=false,escaped=false,start=0;const parts=[];
  for(let i=0;i<value.length;i++){const c=value[i];if(escaped){escaped=false;continue;}if(c==='\\'&&quoted){escaped=true;continue;}if(c==='"'){quoted=!quoted;continue;}if(quoted)continue;if(c==='(')depth++;if(c===')')depth--;if(c===','&&depth===0){parts.push(value.slice(start,i));start=i+1;}}

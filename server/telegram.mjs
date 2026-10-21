@@ -3,6 +3,7 @@ import {HttpError} from './db.mjs';
 import {digest,token} from './security.mjs';
 import {telegramReady,telegram} from './providers.mjs';
 import {handleRegistrationMessage} from './telegram-registration.mjs';
+import {handleContactRecovery} from './telegram-contact-recovery.mjs';
 
 export async function handleTelegramWebhook(req,body,db,env){
  if(!telegramReady(env))throw new HttpError(503,'Telegram hali ulanmagan.');
@@ -17,11 +18,14 @@ export async function handleTelegramWebhook(req,body,db,env){
   return {ok:true};
  }
  if(m.text==='/stop'){
+  await db('telegram_recovery_contacts',{method:'PATCH',query:new URLSearchParams({chat_id:`eq.${m.chat.id}`,consumed_at:'is.null'}).toString(),body:{consumed_at:new Date().toISOString()}});
   if(env.FEATURE_TELEGRAM_REGISTRATION==='true')await db('telegram_registrations',{method:'PATCH',query:new URLSearchParams({chat_id:`eq.${m.chat.id}`,consumed_at:'is.null'}).toString(),body:{consumed_at:new Date().toISOString()}});
   await db('rpc/zar_unlink_telegram',{method:'POST',body:{p_chat_id:m.chat.id}});
   await telegram('sendMessage',{chat_id:m.chat.id,text:'Telegram hisobingiz saytdan uzildi. Qayta bog‘lash uchun saytdagi Hisob sozlamalariga kiring.',reply_markup:{remove_keyboard:true}},env);
   return {ok:true};
  }
+ if(/^\/start r_[a-f0-9]{48}$/.test(String(m.text||''))&&env.FEATURE_TELEGRAM_REGISTRATION==='true')await db('telegram_recovery_contacts',{method:'PATCH',query:new URLSearchParams({chat_id:`eq.${m.chat.id}`,consumed_at:'is.null'}).toString(),body:{consumed_at:new Date().toISOString()}});
+ if(await handleContactRecovery(m,db,env))return {ok:true};
  if(await handleRegistrationMessage(m,db,env))return {ok:true};
  const match=String(m.text||'').match(/^\/start ([a-f0-9]{64})$/);
  if(match){

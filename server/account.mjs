@@ -1,4 +1,4 @@
-import {randomInt,createHmac} from 'node:crypto';
+import {randomInt,randomBytes,createHmac} from 'node:crypto';
 import {HttpError} from './db.mjs';
 import {text,phone,password,integer,fail} from './validation.mjs';
 import {token,digest,requireRole,rateLimit,hashPassword} from './security.mjs';
@@ -13,14 +13,17 @@ export async function handleAccount({path,method,user,body,req,db,env}){
   if(!telegramReady(env))throw new HttpError(503,'Telegram orqali tiklash hali ulanmagan.');
   const login=normalizeLogin(text(body.login,'Login yoki telefon',3,100));
   await rateLimit(req,db,'telegram-recovery-request',login,{account:3,ip:20});
-  const id=token(),code=String(randomInt(100000,1000000));
+  const secret=randomBytes(24).toString('hex'),id=digest(secret),code=String(randomInt(100000,1000000));
+  const bot=await telegram('getMe',{},env);
+  if(!/^[A-Za-z0-9_]{5,32}$/.test(bot.username||''))throw new HttpError(503,'Telegram bot manzili aniqlanmadi.');
+  await rpc('zar_prepare_contact_recovery',{p_id:id,p_login:login});
   const found=await rpc('zar_start_telegram_recovery',{p_login:login,p_code_hash:otpHash(id,code,env),p_id:id});
   if(found){
    try{await telegram('sendMessage',{chat_id:found.chatId,text:`ZARURIYAT parolni tiklash kodi: ${code}\nKod 10 daqiqa amal qiladi. Uni hech kimga bermang. So‘rovni siz yubormagan bo‘lsangiz, bu xabarni e’tiborsiz qoldiring.`},env);}
-   catch{console.error(JSON.stringify({event:'telegram_recovery_delivery_failure'}));}
+   catch(error){console.error(JSON.stringify({event:'telegram_recovery_delivery_failure',category:error.name,providerStatus:error.providerStatus}));}
   }
   // Do not disclose account existence, binding, cooldown or delivery failures.
-  return {ok:true,challenge:id,expiresIn:600,message:'Hisobingizga Telegram oldindan bog‘langan bo‘lsa, kod botga yuboriladi.'};
+  return {ok:true,challenge:id,url:`https://t.me/${bot.username}?start=c_${secret}`,expiresIn:600,message:'Telegram bog‘langan bo‘lsa, kod botga yuboriladi. Kod kelmasa, botni ochib o‘z telefon raqamingizni tasdiqlang. Faqat mijoz hisoblari uchun.'};
  }
  if(path==='/auth/recovery/telegram/confirm'&&method==='POST'){
   if(!telegramReady(env))throw new HttpError(503,'Telegram orqali tiklash hali ulanmagan.');

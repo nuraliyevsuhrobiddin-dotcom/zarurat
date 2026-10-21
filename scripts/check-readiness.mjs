@@ -27,8 +27,8 @@ if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
    catch{add(`Migration 002: ${table}`,false,'Apply migrations/002_accounts_notifications.sql.');}
   }
   if(telegramReady(env)){
-   try{await db('telegram_recovery',{query:'select=id&limit=0'});add('Migration 006: Telegram recovery',true);}
-   catch{add('Migration 006: Telegram recovery',false,'Apply migrations/006_telegram_recovery.sql.');}
+   try{await db('telegram_recovery',{query:'select=id&limit=0'});await db('telegram_recovery_contacts',{query:'select=id&limit=0'});add('Migration 006: Telegram recovery',true);}
+   catch{add('Migration 006: Telegram recovery',false,'Apply migrations/006_telegram_recovery.sql and migrations/008_telegram_contact_recovery.sql.');}
   }
   if(env.FEATURE_TELEGRAM_REGISTRATION==='true'){
    try{await db('telegram_registrations',{query:'select=token_hash&limit=0'});add('Migration 007: Telegram registration',true);}

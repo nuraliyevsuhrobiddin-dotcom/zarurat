@@ -36,6 +36,12 @@ Paketlar barcha ekranlarda STANDARD, COMFORT va PREMIUM nomlari bilan ko‘rsati
 
 ## Chegaralar
 
+Telegramga oldindan bog‘lanmagan mijozlar parolni tiklash oynasidagi bot
+havolasidan o‘tib, o‘z kontaktini ulashishi mumkin. Buning uchun
+`migrations/008_telegram_contact_recovery.sql` ni 006 dan keyin qo‘llang.
+Raqam hisobdagiga mos va yagona bo‘lishi kerak. Xodimlar va boshqa
+Telegramga bog‘langan hisoblar bu usul bilan tiklanmaydi.
+
 Telegram/SMS adapterlari, OTP bilan tiklash va hisobni bloklash tayyor, lekin
 `002_accounts_notifications.sql` hamda provayder sozlamalarisiz o'chirilgan.
 O'z parolini o'zgartirish faol; Payme Merchant API integratsiyasi tayyor, kalitlar va kassa sozlangach yoqiladi. Fayllar bazada base64,

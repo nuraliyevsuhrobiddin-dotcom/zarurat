@@ -7,13 +7,14 @@ import {handleAccount} from '../server/account.mjs';
 import {testDatabase} from './helpers/database.mjs';
 import {otpHash} from '../server/account.mjs';
 import {smsReady,telegramReady,stage2} from '../server/providers.mjs';
+import {handleContactRecovery} from '../server/telegram-contact-recovery.mjs';
 
 let pg,db;const env={FEATURE_TELEGRAM:'true',TELEGRAM_BOT_TOKEN:'test-only',TELEGRAM_WEBHOOK_SECRET:'test-only',OTP_SECRET:'test-only'};
 const req={headers:{},socket:{remoteAddress:'127.0.0.1'}};
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});
  await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
- for(const file of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql'])await pg.exec(await readFile(file,'utf8'));
+ for(const file of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/008_telegram_contact_recovery.sql'])await pg.exec(await readFile(file,'utf8'));
  await pg.exec(`INSERT INTO users(login,name,phone,password_hash,role,telegram_chat_id) VALUES('tg-client','Telegram client','+998901234567',extensions.crypt('old-password',extensions.gen_salt('bf',4)),'client',12345),('unlinked','Unlinked','+998901234568',extensions.crypt('old-password',extensions.gen_salt('bf',4)),'client',NULL);`);
  db=testDatabase(pg);
 });
@@ -33,7 +34,7 @@ test('Telegram flag enables Telegram while SMS and staff blocking remain disable
 
 test('Telegram recovery works without SMS, hides account existence, resets password and revokes sessions',async()=>{
  const original=globalThis.fetch;const messages=[];
- globalThis.fetch=async(url,options)=>{assert.ok(String(url).startsWith('https://api.telegram.org/bot'));messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{message_id:1}})};};
+ globalThis.fetch=async(url,options)=>{assert.ok(String(url).startsWith('https://api.telegram.org/bot'));if(String(url).endsWith('/sendMessage'))messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{message_id:1,username:'test_bot'}})};};
  try{
   const result=await account('/auth/recovery/telegram/request',{login:' TG-CLIENT '});
   assert.equal(messages.length,1);assert.equal(messages[0].chat_id,12345);
@@ -74,7 +75,7 @@ test('Telegram recovery cooldown covers login and phone; delivery failures remai
  await clear();await pg.exec('UPDATE users SET telegram_chat_id=12345,blocked_at=NULL WHERE id=1');
  await start('c'.repeat(64));
  assert.equal((await pg.query(`SELECT zar_start_telegram_recovery('+998901234567',$1,$2) AS r`,['e'.repeat(64),'d'.repeat(64)])).rows[0].r,null);
- await clear();const original=globalThis.fetch;globalThis.fetch=async()=>{throw Error('provider unavailable');};
+ await clear();const original=globalThis.fetch;globalThis.fetch=async(url)=>{if(String(url).endsWith('/getMe'))return {ok:true,json:async()=>({ok:true,result:{username:'test_bot'}})};throw Error('provider unavailable');};
  try{const result=await account('/auth/recovery/telegram/request',{login:'tg-client'});assert.equal(result.ok,true);assert.match(result.challenge,/^[a-f0-9]{64}$/);}finally{globalThis.fetch=original;}
 });
 
@@ -87,4 +88,48 @@ test('Telegram recovery rejects disabled provider, malformed codes and public da
   await assert.rejects(start('f'.repeat(64)));
   await assert.rejects(confirm('f'.repeat(64)));
  }finally{await pg.exec('RESET ROLE');}
+});
+
+test('own Telegram contact recovers an unlinked client; forged contacts and replay fail',async()=>{
+ await clear();await pg.exec('DELETE FROM telegram_recovery_contacts; UPDATE users SET telegram_chat_id=NULL WHERE id=2');
+ const original=globalThis.fetch,messages=[];
+ globalThis.fetch=async(url,options)=>{if(String(url).endsWith('/sendMessage'))messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{username:'test_bot'}})};};
+ try{
+  const result=await account('/auth/recovery/telegram/request',{login:'unlinked'});
+  const secret=new URL(result.url).searchParams.get('start');
+  const message={chat:{id:54321},from:{id:54321}};
+  await handleContactRecovery({...message,text:'/start '+secret},db,env);
+  await handleContactRecovery({...message,contact:{user_id:999,phone_number:'998901234568'}},db,env);
+  assert.equal((await pg.query('SELECT telegram_chat_id FROM users WHERE id=2')).rows[0].telegram_chat_id,null);
+  await handleContactRecovery({...message,contact:{user_id:54321,phone_number:'998901234568'}},db,env);
+  const code=messages.at(-1).text.match(/\b\d{6}\b/)[0];
+  assert.equal((await account('/auth/recovery/telegram/confirm',{challenge:result.challenge,code,password:'contact-password-2026'})).ok,true);
+  assert.equal(await handleContactRecovery({...message,contact:{user_id:54321,phone_number:'998901234568'}},db,env),false);
+ }finally{globalThis.fetch=original;}
+});
+
+test('contact recovery refuses mismatches, staff, blocked and differently linked accounts',async()=>{
+ for(const change of ["phone='+998900000000'","role='director'","blocked_at=now()","telegram_chat_id=88888"]){
+  await clear();await pg.exec("DELETE FROM telegram_recovery_contacts; UPDATE users SET role='client',phone='+998901234568',blocked_at=NULL,telegram_chat_id=NULL WHERE id=2");
+  await pg.exec('UPDATE users SET '+change+' WHERE id=2');
+  const id='9'.repeat(64);
+  await pg.query('SELECT zar_prepare_contact_recovery($1,$2)',[id,'unlinked']);
+  await pg.query('SELECT zar_open_contact_recovery($1,54321)',[id]);
+  assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998901234568',otpHash(id,'123456',env)])).rows[0].r,null,change);
+ }
+ await pg.exec("UPDATE users SET role='client',blocked_at=NULL,telegram_chat_id=NULL WHERE id=2");
+});
+
+test('contact recovery rejects expired links, duplicate phones and anonymous RPC access',async()=>{
+ await clear();await pg.exec("DELETE FROM telegram_recovery_contacts; UPDATE users SET phone='+998901234568',telegram_chat_id=NULL WHERE id=2");
+ const id='8'.repeat(64);
+ await pg.query('SELECT zar_prepare_contact_recovery($1,$2)',[id,'unlinked']);
+ await pg.exec("UPDATE telegram_recovery_contacts SET expires_at=now()-interval '1 second'");
+ assert.equal((await pg.query('SELECT zar_open_contact_recovery($1,54321) AS r',[id])).rows[0].r,false);
+ await pg.exec("UPDATE telegram_recovery_contacts SET expires_at=now()+interval '10 minutes'; UPDATE users SET phone='+998 (90) 123-45-68' WHERE id=1");
+ await pg.query('SELECT zar_open_contact_recovery($1,54321)',[id]);
+ assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998901234568',otpHash(id,'123456',env)])).rows[0].r,null);
+ await pg.exec('SET ROLE anon');
+ try{await assert.rejects(pg.query('SELECT zar_prepare_contact_recovery($1,$2)',[id,'unlinked']));await assert.rejects(pg.query('SELECT * FROM telegram_recovery_contacts'));}
+ finally{await pg.exec("RESET ROLE; UPDATE users SET phone='+998901234567' WHERE id=1");}
 });

@@ -14,6 +14,11 @@ export async function telegram(method,body,env,fetcher=fetch){
  if(!telegramReady(env))throw new HttpError(503,'Telegram xizmati hali ulanmagan.');
  const response=await fetcher(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',signal:AbortSignal.timeout(10000),headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  const data=await response.json().catch(()=>null);
- if(!response.ok||data?.ok!==true)throw new HttpError(503,'Telegram so‘rovi vaqtincha ishlamayapti.');
+ if(!response.ok||data?.ok!==true){
+  const error=new HttpError(503,'Telegram so‘rovi vaqtincha ishlamayapti.');
+  // Numeric provider status is safe to log; tokens, chat IDs and messages are not.
+  error.providerStatus=Number.isInteger(data?.error_code)?data.error_code:response.status;
+  throw error;
+ }
  return data.result;
 }
