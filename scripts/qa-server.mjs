@@ -16,6 +16,8 @@ await pg.exec(await readFile('migrations/002_accounts_notifications.sql','utf8')
 await pg.exec(await readFile('migrations/006_telegram_recovery.sql','utf8'));
 await pg.exec(await readFile('migrations/007_telegram_registration.sql','utf8'));
 await pg.exec(await readFile('migrations/008_telegram_contact_recovery.sql','utf8'));
+await pg.exec(await readFile('migrations/009_telegram_recovery_retries.sql','utf8'));
+await pg.exec(await readFile('migrations/010_telegram_cases.sql','utf8'));
 await pg.exec(`
  INSERT INTO partners(name,phone,address,category,hours,region,price,contract_status)
  VALUES('QA hamkor','+998901111115','QA Qarshi','legal','09:00-18:00','Qashqadaryo',0,'active');

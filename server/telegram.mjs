@@ -4,6 +4,7 @@ import {digest,token} from './security.mjs';
 import {telegramReady,telegram} from './providers.mjs';
 import {handleRegistrationMessage} from './telegram-registration.mjs';
 import {handleContactRecovery} from './telegram-contact-recovery.mjs';
+import {handleTelegramCases,telegramCasesEnabled} from './telegram-cases.mjs';
 
 export async function handleTelegramWebhook(req,body,db,env){
  if(!telegramReady(env))throw new HttpError(503,'Telegram hali ulanmagan.');
@@ -13,6 +14,10 @@ export async function handleTelegramWebhook(req,body,db,env){
  const m=body.message;
  if(!m||m.chat?.type!=='private'||!Number.isSafeInteger(m.chat.id)||m.chat.id!==m.from?.id)return {ok:true};
  if(/^\/(start|help)(?:@[A-Za-z0-9_]+)?$/.test(String(m.text||'').trim())){
+  if(telegramCasesEnabled(env)){
+   await handleTelegramCases({...m,text:'/menu'},db,env);
+   return {ok:true};
+  }
   const origin=new URL(env.PUBLIC_ORIGIN).origin;
   await telegram('sendMessage',{chat_id:m.chat.id,text:'Assalomu alaykum! Bu ZARURIYAT hisobini tasdiqlash va parolni tiklash boti.\n\nRo‘yxatdan o‘tish uchun avval saytda formani to‘ldiring, keyin «Telegramda tasdiqlash» havolasidan shu botga o‘ting. Shunda telefon raqamingizni ulashish tugmasi chiqadi.\n\nMavjud hisobni bog‘lash: saytda Hisob sozlamalari → Telegramni bog‘lash.\n\nParolni tiklash: saytda «Parolni unutdingizmi?» tugmasini bosing. Hisob oldindan bog‘langan bo‘lsa, kod shu yerga keladi.',reply_markup:{inline_keyboard:[[{text:'Ro‘yxatdan o‘tish',url:origin+'/#register'}],[{text:'Parolni tiklash',url:origin+'/#recovery'}],[{text:'Hisobga kirish',url:origin+'/#login'}]]}},env);
   return {ok:true};
@@ -37,6 +42,9 @@ export async function handleTelegramWebhook(req,body,db,env){
   return {ok:true};
  }
  if(/^\/start\b/.test(String(m.text||'')))await telegram('sendMessage',{chat_id:m.chat.id,text:'Bu havola yaroqsiz. Saytga qaytib «Telegramda tasdiqlash» yoki «Telegramni bog‘lash» orqali yangi havola oling.'},env);
+ else if(await handleTelegramCases(m,db,env)){
+  if(m.text==='✅ Roziman, yuborish')await drainNotifications(db,env).catch(error=>console.error(JSON.stringify({event:'notification_queue_failure',category:error.name})));
+ }
  return {ok:true};
 }
 
@@ -52,7 +60,7 @@ export async function drainNotifications(db,env){
  let sent=0,failed=0;
  await Promise.all(rows.map(async row=>{
   try{
-   const result=await telegram('sendMessage',{chat_id:row.chatId,text:notificationText(row)},env);
+   const result=await telegram('sendMessage',{chat_id:row.chatId,text:notificationText(row)+(telegramCasesEnabled(env)?`\nKuzatish: /track ${row.caseNumber}`:'')},env);
    const done=await db('rpc/zar_finish_notification',{method:'POST',body:{p_id:row.id,p_claim_token:claim,p_sent:true,p_provider_id:result.message_id,p_error:null}});
    if(done)sent++;
   }catch{

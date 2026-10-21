@@ -27,12 +27,16 @@ if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
    catch{add(`Migration 002: ${table}`,false,'Apply migrations/002_accounts_notifications.sql.');}
   }
   if(telegramReady(env)){
-   try{await db('telegram_recovery',{query:'select=id&limit=0'});await db('telegram_recovery_contacts',{query:'select=id&limit=0'});add('Migration 006: Telegram recovery',true);}
-   catch{add('Migration 006: Telegram recovery',false,'Apply migrations/006_telegram_recovery.sql and migrations/008_telegram_contact_recovery.sql.');}
+   try{await db('telegram_recovery',{query:'select=id&limit=0'});await db('telegram_recovery_contacts',{query:'select=id,attempts&limit=0'});add('Migration 006: Telegram recovery',true);}
+   catch{add('Migration 006: Telegram recovery',false,'Apply migrations/006_telegram_recovery.sql and migrations/008_telegram_contact_recovery.sql, then migrations/009_telegram_recovery_retries.sql.');}
   }
   if(env.FEATURE_TELEGRAM_REGISTRATION==='true'){
    try{await db('telegram_registrations',{query:'select=token_hash&limit=0'});add('Migration 007: Telegram registration',true);}
    catch{add('Migration 007: Telegram registration',false,'Apply migrations/007_telegram_registration.sql.');}
+  }
+  if(env.FEATURE_TELEGRAM_CASES==='true'){
+   try{await db('telegram_case_drafts',{query:'select=chat_id&limit=0'});add('Migration 010: Telegram requests',true);}
+   catch{add('Migration 010: Telegram requests',false,'Apply migrations/010_telegram_cases.sql after 009.');}
   }
  }
  if(env.SUPABASE_ANON_KEY){

@@ -14,7 +14,7 @@ const req={headers:{},socket:{remoteAddress:'127.0.0.1'}};
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});
  await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
- for(const file of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/008_telegram_contact_recovery.sql'])await pg.exec(await readFile(file,'utf8'));
+ for(const file of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/008_telegram_contact_recovery.sql','migrations/009_telegram_recovery_retries.sql'])await pg.exec(await readFile(file,'utf8'));
  await pg.exec(`INSERT INTO users(login,name,phone,password_hash,role,telegram_chat_id) VALUES('tg-client','Telegram client','+998901234567',extensions.crypt('old-password',extensions.gen_salt('bf',4)),'client',12345),('unlinked','Unlinked','+998901234568',extensions.crypt('old-password',extensions.gen_salt('bf',4)),'client',NULL);`);
  db=testDatabase(pg);
 });
@@ -132,4 +132,25 @@ test('contact recovery rejects expired links, duplicate phones and anonymous RPC
  await pg.exec('SET ROLE anon');
  try{await assert.rejects(pg.query('SELECT zar_prepare_contact_recovery($1,$2)',[id,'unlinked']));await assert.rejects(pg.query('SELECT * FROM telegram_recovery_contacts'));}
  finally{await pg.exec("RESET ROLE; UPDATE users SET phone='+998901234567' WHERE id=1");}
+});
+
+test('invalid links preserve the active request and wrong contact retries are bounded',async()=>{
+ await clear();await pg.exec("DELETE FROM telegram_recovery_contacts; UPDATE users SET role='client',blocked_at=NULL,telegram_chat_id=NULL WHERE id=2");
+ const id='7'.repeat(64),hash=otpHash(id,'123456',env);
+ await pg.query('SELECT zar_prepare_contact_recovery($1,$2)',[id,'unlinked']);
+ await pg.query('SELECT zar_open_contact_recovery($1,54321)',[id]);
+ assert.equal((await pg.query('SELECT zar_open_contact_recovery($1,54321) AS r',['6'.repeat(64)])).rows[0].r,false);
+ assert.equal((await pg.query('SELECT consumed_at FROM telegram_recovery_contacts WHERE id=$1',[id])).rows[0].consumed_at,null);
+ for(let i=0;i<5;i++)assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998900000000',hash])).rows[0].r,null);
+ assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998901234568',hash])).rows[0].r,null);
+ assert.equal((await pg.query('SELECT attempts FROM telegram_recovery_contacts WHERE id=$1',[id])).rows[0].attempts,5);
+});
+
+test('a wrong number can be corrected on the same link without losing the challenge',async()=>{
+ await clear();await pg.exec('DELETE FROM telegram_recovery_contacts');
+ const id='5'.repeat(64),hash=otpHash(id,'123456',env);
+ await pg.query('SELECT zar_prepare_contact_recovery($1,$2)',[id,'unlinked']);
+ await pg.query('SELECT zar_open_contact_recovery($1,54321)',[id]);
+ assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998900000000',hash])).rows[0].r,null);
+ assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998901234568',hash])).rows[0].r.chatId,54321);
 });
