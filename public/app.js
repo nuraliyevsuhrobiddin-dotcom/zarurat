@@ -792,6 +792,19 @@ document.addEventListener('click',async e=>{
   else if(action==='staff-block')staffBlockDialog(button.dataset.id);
   else if(action==='password')passwordDialog();
   else if(action==='staff-password')passwordDialog(button.dataset.id);
+  else if(action==='recovery-resend'){
+   const form=button.closest('#recovery-confirm-form');
+   if(!form||form.dataset.channel!=='telegram')return;
+   const remaining=Math.ceil((Number(button.dataset.readyAt)-Date.now())/1000);
+   if(remaining>0){toast(pageLabel(`Qayta yuborish uchun ${remaining} soniya kuting.`, `Қайта юбориш учун ${remaining} сония кутинг.`));return;}
+   button.disabled=true;
+   try{
+    const result=await api('/auth/recovery/telegram/request',{login:form.dataset.login,challenge:form.dataset.challenge});
+    if(!form.isConnected)return;
+    button.dataset.readyAt=String(Date.now()+60000);
+    toast(tr(result.message));
+   }finally{if(button.isConnected)button.disabled=false;}
+  }
   else if(action==='recovery')await recoveryDialog();
   else if(action==='cases-more')await loadMoreCases(button);
   else if(action==='file')await openAttachment(button);
@@ -845,7 +858,7 @@ document.addEventListener('submit',async e=>{
   else if(form.id==='recovery-request-form'){
    const telegramChannel=data.channel==='telegram',channel=telegramChannel?'telegram':'sms';
    const result=await api(telegramChannel?'/auth/recovery/telegram/request':'/auth/recovery/request',telegramChannel?{login:data.login}:{phone:data.login});if(!form.isConnected||version!==routeVersion)return;
-   modalOpen(tr('Parolni tiklash'),tr('Tasdiqlash kodini va yangi parolni kiriting.'),`<form id="recovery-confirm-form" data-challenge="${esc(result.challenge)}" data-channel="${channel}">${formError}<div class="notice" role="status">${esc(pageLabel(telegramChannel?'Hisobingizga Telegram oldindan bog‘langan bo‘lsa, kod botga yuboriladi. Kod 10 daqiqa amal qiladi.':'Telefon oldindan tasdiqlangan bo‘lsa, kod SMS orqali yuboriladi. Kod 10 daqiqa amal qiladi.',telegramChannel?'Ҳисобингизга Telegram олдиндан боғланган бўлса, код ботга юборилади. Код 10 дақиқа амал қилади.':'Телефон олдиндан тасдиқланган бўлса, код SMS орқали юборилади. Код 10 дақиқа амал қилади.'))}</div>${telegramChannel&&result.url?`<p>${esc(tr(result.message))}</p><a class="btn outline" href="${esc(result.url)}" target="_blank" rel="noopener noreferrer">${tr("Telegramda raqamni tasdiqlash")}</a>`:""}${field('code',tr('Tasdiqlash kodi'),'text','','required inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="6" pattern="[0-9]{6}"')}${field('password',tr('Yangi parol'),'password','','required minlength="10" maxlength="72" autocomplete="new-password"')}${field('confirmPassword',tr('Yangi parolni takrorlang'),'password','','required minlength="10" maxlength="72" autocomplete="new-password"')}<div class="form-actions"><button class="btn" type="submit">${tr('Parolni saqlash')}</button><button type="button" class="btn outline" data-action="recovery">${pageLabel('Kodni qayta so‘rash','Кодни қайта сўраш')}</button></div></form>`);
+   modalOpen(tr('Parolni tiklash'),tr('Tasdiqlash kodini va yangi parolni kiriting.'),`<form id="recovery-confirm-form" data-challenge="${esc(result.challenge)}" data-channel="${channel}" data-login="${esc(data.login)}">${formError}<div class="notice" role="status">${esc(pageLabel(telegramChannel?'Hisobingizga Telegram oldindan bog‘langan bo‘lsa, kod botga yuboriladi. Kod 10 daqiqa amal qiladi.':'Telefon oldindan tasdiqlangan bo‘lsa, kod SMS orqali yuboriladi. Kod 10 daqiqa amal qiladi.',telegramChannel?'Ҳисобингизга Telegram олдиндан боғланган бўлса, код ботга юборилади. Код 10 дақиқа амал қилади.':'Телефон олдиндан тасдиқланган бўлса, код SMS орқали юборилади. Код 10 дақиқа амал қилади.'))}</div>${telegramChannel&&result.url?`<p>${esc(tr(result.message))}</p><a class="btn outline" href="${esc(result.url)}" target="_blank" rel="noopener noreferrer">${tr("Telegramda raqamni tasdiqlash")}</a>`:""}${field('code',tr('Tasdiqlash kodi'),'text','','required inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="6" pattern="[0-9]{6}"')}${field('password',tr('Yangi parol'),'password','','required minlength="10" maxlength="72" autocomplete="new-password"')}${field('confirmPassword',tr('Yangi parolni takrorlang'),'password','','required minlength="10" maxlength="72" autocomplete="new-password"')}<div class="form-actions"><button class="btn" type="submit">${tr('Parolni saqlash')}</button>${telegramChannel?`<button type="button" class="btn outline" data-action="recovery-resend" data-ready-at="${Date.now()+60000}">${pageLabel('Kodni qayta yuborish','Кодни қайта юбориш')}</button>`:''}<button type="button" class="btn outline" data-action="recovery">${pageLabel('Qayta boshlash','Қайта бошлаш')}</button></div></form>`);
   }
   else if(form.id==='recovery-confirm-form'){if(data.password!==data.confirmPassword)throw new Error(tr('Yangi parollar bir xil emas.'));await api(form.dataset.channel==='telegram'?'/auth/recovery/telegram/confirm':'/auth/recovery/confirm',{challenge:form.dataset.challenge,code:data.code,password:data.password});if(!form.isConnected||version!==routeVersion)return;resetApiContext();state.user=null;resetWorkspace(state);modalClose();if(mobileViewport())location.hash='login';else loginDialog();toast(tr('Parol yangilandi.'));}
   else if(form.id==='track-form'){state.lastTrack=null;$('#tracking-result').replaceChildren();const result=await api('/track',data);if(!form.isConnected||version!==routeVersion)return;state.lastTrack={case:result.case,token:data.token};$('#tracking-result').innerHTML=`<div class="divider"></div>${caseReadOnly(result.case,data.token)}`;}

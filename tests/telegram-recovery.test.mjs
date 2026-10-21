@@ -8,6 +8,7 @@ import {testDatabase} from './helpers/database.mjs';
 import {otpHash} from '../server/account.mjs';
 import {smsReady,telegramReady,stage2} from '../server/providers.mjs';
 import {handleContactRecovery} from '../server/telegram-contact-recovery.mjs';
+import {sendRecoveryCode} from '../server/telegram-recovery-delivery.mjs';
 
 let pg,db;const env={FEATURE_TELEGRAM:'true',TELEGRAM_BOT_TOKEN:'test-only',TELEGRAM_WEBHOOK_SECRET:'test-only',OTP_SECRET:'test-only'};
 const req={headers:{},socket:{remoteAddress:'127.0.0.1'}};
@@ -153,4 +154,71 @@ test('a wrong number can be corrected on the same link without losing the challe
  await pg.query('SELECT zar_open_contact_recovery($1,54321)',[id]);
  assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998900000000',hash])).rows[0].r,null);
  assert.equal((await pg.query('SELECT zar_contact_recovery($1,54321,$2,$3) AS r',[id,'+998901234568',hash])).rows[0].r.chatId,54321);
+});
+
+test('transient delivery retries reuse the identical code; permanent Telegram blocks do not retry',async()=>{
+ const original=globalThis.fetch;const messages=[];
+ try{
+  globalThis.fetch=async(url,options)=>{
+   messages.push(JSON.parse(options.body));
+   if(messages.length===1)throw new Error('temporary network failure');
+   return {ok:true,json:async()=>({ok:true,result:{message_id:1}})};
+  };
+  await sendRecoveryCode(12345,'123456',env);
+  assert.equal(messages.length,2);assert.deepEqual(messages[0],messages[1]);
+  messages.length=0;
+  globalThis.fetch=async(url,options)=>{messages.push(JSON.parse(options.body));return {ok:false,status:403,json:async()=>({ok:false,error_code:403})};};
+  await assert.rejects(sendRecoveryCode(12345,'123456',env));assert.equal(messages.length,1);
+  messages.length=0;
+  globalThis.fetch=async(url,options)=>{messages.push(JSON.parse(options.body));return {ok:false,status:502,json:async()=>({ok:false,error_code:502})};};
+  await assert.rejects(sendRecoveryCode(12345,'123456',env));assert.equal(messages.length,2);
+ }finally{globalThis.fetch=original;}
+});
+
+test('resending keeps the same challenge, respects cooldown and replaces only its code',async()=>{
+ await clear();await pg.exec('UPDATE users SET telegram_chat_id=12345,blocked_at=NULL WHERE id=1');
+ const original=globalThis.fetch,messages=[];
+ globalThis.fetch=async(url,options)=>{if(String(url).endsWith('/sendMessage'))messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{username:'test_bot'}})};};
+ try{
+  const first=await account('/auth/recovery/telegram/request',{login:'tg-client'});
+  const originalHash=(await pg.query('SELECT code_hash FROM telegram_recovery WHERE id=$1',[first.challenge])).rows[0].code_hash;
+  const immediate=await account('/auth/recovery/telegram/request',{login:'tg-client',challenge:first.challenge});
+  assert.equal(immediate.challenge,first.challenge);assert.equal(messages.length,1);
+  assert.equal((await pg.query('SELECT code_hash FROM telegram_recovery WHERE id=$1',[first.challenge])).rows[0].code_hash,originalHash);
+  await pg.exec("UPDATE telegram_recovery SET created_at=now()-interval '61 seconds',attempts=2");
+  const resend=await account('/auth/recovery/telegram/request',{login:'tg-client',challenge:first.challenge});
+  assert.equal(resend.challenge,first.challenge);assert.equal(messages.length,2);
+  const row=(await pg.query('SELECT * FROM telegram_recovery WHERE id=$1',[first.challenge])).rows[0];
+  assert.equal(row.attempts,2);assert.equal((await pg.query('SELECT count(*) AS n FROM telegram_recovery')).rows[0].n,1);
+  const code=messages[1].text.match(/\b\d{6}\b/)[0];assert.equal(row.code_hash,otpHash(first.challenge,code,env));
+  assert.equal((await account('/auth/recovery/telegram/confirm',{challenge:first.challenge,code,password:'resend-password-2026'})).ok,true);
+ }finally{globalThis.fetch=original;}
+});
+
+test('retry cannot revive expired, locked, consumed or differently owned challenges',async()=>{
+ const original=globalThis.fetch;let sent=0;
+ globalThis.fetch=async()=>{sent++;return {ok:true,json:async()=>({ok:true,result:{message_id:1}})};};
+ try{
+  for(const change of ["expires_at=now()-interval '1 second'",'attempts=5','consumed_at=now()']){
+   await clear();const id='4'.repeat(64);await start(id);
+   await pg.exec("UPDATE telegram_recovery SET created_at=now()-interval '61 seconds',"+change);
+   await account('/auth/recovery/telegram/request',{login:'tg-client',challenge:id});
+  }
+  await clear();const id='3'.repeat(64);await start(id);await pg.exec("UPDATE telegram_recovery SET created_at=now()-interval '61 seconds'");
+  await account('/auth/recovery/telegram/request',{login:'unlinked',challenge:id});
+  await account('/auth/recovery/telegram/request',{login:'tg-client',challenge:'2'.repeat(64)});
+  assert.equal(sent,0);
+ }finally{globalThis.fetch=original;}
+});
+
+test('opening the bot after direct delivery does not ask for another contact or invalidate the code',async()=>{
+ await clear();const original=globalThis.fetch,messages=[];
+ globalThis.fetch=async(url,options)=>{if(String(url).endsWith('/sendMessage'))messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{username:'test_bot'}})};};
+ try{
+  const first=await account('/auth/recovery/telegram/request',{login:'tg-client'});
+  const code=messages[0].text.match(/\b\d{6}\b/)[0];
+  await handleContactRecovery({chat:{id:12345},from:{id:12345},text:'/start '+new URL(first.url).searchParams.get('start')},db,env);
+  assert.equal(messages.at(-1).reply_markup.remove_keyboard,true);
+  assert.equal((await account('/auth/recovery/telegram/confirm',{challenge:first.challenge,code,password:'existing-code-2026'})).ok,true);
+ }finally{globalThis.fetch=original;}
 });
