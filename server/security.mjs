@@ -1,7 +1,7 @@
 import { randomBytes, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { compare,hash } from 'bcryptjs';
 import { HttpError, query } from './db.mjs';
-import {stage2} from './providers.mjs';
+import {stage2,telegramReady} from './providers.mjs';
 export const token = () => randomBytes(32).toString('hex');
 export const digest = value => createHash('sha256').update(value).digest('hex');
 // pgcrypto uses the interoperable $2a$ bcrypt prefix.
@@ -32,7 +32,7 @@ export async function currentUser(req, db, env=process.env) {
   const [value,signature]=supplied.split('.');
   const sessions = await db('sessions', { query: query({ select: 'user_id', token_hash: `eq.${digest(value)}`, expires_at: `gt.${new Date().toISOString()}`, limit: 1 }) });
   if (!sessions?.length) return null;
-  const fields='id,name,phone,login,role,partner_id,password_hash'+(stage2(env)?',blocked_at,phone_verified_at,telegram_chat_id':'');
+  const fields='id,name,phone,login,role,partner_id,password_hash'+(stage2(env)||telegramReady(env)?',blocked_at,phone_verified_at,telegram_chat_id':'');
   const users = await db('users', { query: query({ select: fields, id: `eq.${sessions[0].user_id}`, limit: 1 }) });
   const user=users?.[0];
   if(!user||user.blocked_at)return null;

@@ -1,7 +1,7 @@
 import {HttpError} from './db.mjs';
 export const stage2=env=>env.FEATURE_STAGE2==='true';
 export const smsReady=env=>stage2(env)&&env.SMS_PROVIDER==='twilio'&&Boolean(env.TWILIO_ACCOUNT_SID&&env.TWILIO_AUTH_TOKEN&&env.TWILIO_FROM);
-export const telegramReady=env=>stage2(env)&&Boolean(env.TELEGRAM_BOT_TOKEN&&env.TELEGRAM_WEBHOOK_SECRET);
+export const telegramReady=env=>(env.FEATURE_TELEGRAM==='true'||stage2(env))&&Boolean(env.TELEGRAM_BOT_TOKEN&&env.TELEGRAM_WEBHOOK_SECRET);
 
 export async function sendSms(phone,code,env,fetcher=fetch){
  if(!smsReady(env))throw new HttpError(503,'SMS xizmati hali ulanmagan.');

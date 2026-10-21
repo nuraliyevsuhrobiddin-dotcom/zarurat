@@ -7,6 +7,7 @@ import { notificationFeed } from './notification-feed.mjs';
 import {runBackup} from './backup.mjs';
 import {requireJob} from './jobs.mjs';
 import {handleAccount} from './account.mjs';
+import {registrationTelegramRequired,startTelegramRegistration} from './telegram-registration.mjs';
 import {stage2,smsReady,telegramReady} from './providers.mjs';
 import {handleTelegramWebhook,drainNotifications} from './telegram.mjs';
 import { text, phone, password as validatePassword, integer, choice, timestamp, requestInput, fail } from './validation.mjs';
@@ -122,7 +123,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         result={user:profile(found)};
       } else if(path==='/auth/options'&&method==='GET') {
         const capabilities=user&&staff.includes(user.role)?await rpc('zar_capabilities',{}).catch(()=>null):null;
-        result={stage2Enabled:stage2(env),smsEnabled:smsReady(env),telegramEnabled:telegramReady(env),paymentsEnabled:paymeReady(env),clarificationEnabled:capabilities?.clarification===true};
+        result={stage2Enabled:stage2(env),smsEnabled:smsReady(env),telegramEnabled:telegramReady(env),registrationTelegramRequired:registrationTelegramRequired(env),paymentsEnabled:paymeReady(env),clarificationEnabled:capabilities?.clarification===true};
       } else if(path==='/auth/password'&&method==='POST') {
         requireRole(user);
         await rateLimit(req,db,'password',String(user.id));
@@ -136,12 +137,19 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         await db('sessions',{method:'DELETE',query:query({user_id:`eq.${user.id}`})});
         res.setHeader('Set-Cookie',sessionCookie('',secure,true));
         result={ok:true};
+      } else if(path==='/auth/register/telegram/start'&&method==='POST'){
+        result=await startTelegramRegistration({body,req,db,env});
       } else if (path === '/auth/register' && method === 'POST') {
         if (body.consent !== true) fail('Ro‘yxatdan o‘tish uchun rozilik kerak.');
         const name = text(body.name, 'Ism', 2, 100), mobile = phone(body.phone);
         const password = validatePassword(body.password);
         await rateLimit(req, db, 'register', mobile);
-        const created = await rpc('zar_create_user', { p_name: name, p_phone: mobile, p_login: mobile, p_password: password, p_role: 'client', p_partner_id: null });
+        let created;
+        if(registrationTelegramRequired(env)){
+          if(!telegramReady(env))throw new HttpError(503,'Telegram orqali tasdiqlash vaqtincha ishlamayapti.');
+          if(!/^[a-f0-9]{48}$/.test(body.verification||''))fail('Avval Telegram orqali telefon raqamingizni tasdiqlang.');
+          created=await rpc('zar_register_telegram_verified',{p_token_hash:digest(body.verification),p_phone:mobile,p_name:name,p_password_hash:await hashPassword(password)});
+        }else created = await rpc('zar_create_user', { p_name: name, p_phone: mobile, p_login: mobile, p_password: password, p_role: 'client', p_partner_id: null });
         const value=await createSession(created,password,db,env);
         res.setHeader('Set-Cookie', sessionCookie(value, secure));
         result = { user: profile(created) };

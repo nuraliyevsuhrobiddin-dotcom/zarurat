@@ -2,6 +2,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {HttpError} from './db.mjs';
 import {digest,token} from './security.mjs';
 import {telegramReady,telegram} from './providers.mjs';
+import {handleRegistrationMessage} from './telegram-registration.mjs';
 
 export async function handleTelegramWebhook(req,body,db,env){
  if(!telegramReady(env))throw new HttpError(503,'Telegram hali ulanmagan.');
@@ -11,9 +12,11 @@ export async function handleTelegramWebhook(req,body,db,env){
  const m=body.message;
  if(!m||m.chat?.type!=='private'||!Number.isSafeInteger(m.chat.id)||m.chat.id!==m.from?.id)return {ok:true};
  if(m.text==='/stop'){
+  if(env.FEATURE_TELEGRAM_REGISTRATION==='true')await db('telegram_registrations',{method:'PATCH',query:new URLSearchParams({chat_id:`eq.${m.chat.id}`,consumed_at:'is.null'}).toString(),body:{consumed_at:new Date().toISOString()}});
   await db('rpc/zar_unlink_telegram',{method:'POST',body:{p_chat_id:m.chat.id}});
   return {ok:true};
  }
+ if(await handleRegistrationMessage(m,db,env))return {ok:true};
  const match=String(m.text||'').match(/^\/start ([a-f0-9]{64})$/);
  if(match){
   const linked=await db('rpc/zar_bind_telegram',{method:'POST',body:{p_token_hash:digest(match[1]),p_chat_id:m.chat.id}});

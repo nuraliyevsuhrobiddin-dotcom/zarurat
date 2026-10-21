@@ -21,6 +21,20 @@ if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
   try{add('Migration 004: Payme',await db('rpc/zar_payment_ready',{method:'POST',body:{}})===true,'Apply migrations/004_payme.sql in Supabase SQL Editor.');}
   catch{add('Migration 004: Payme',false,'Apply migrations/004_payme.sql in Supabase SQL Editor.');}
  }
+ if(env.FEATURE_STAGE2==='true'||telegramReady(env)){
+  for(const [table,fields] of [['users','blocked_at,phone_verified_at,telegram_chat_id'],['telegram_links','token_hash'],['otp_challenges','id']]){
+   try{await db(table,{query:`select=${fields}&limit=0`});add(`Migration 002: ${table}`,true);}
+   catch{add(`Migration 002: ${table}`,false,'Apply migrations/002_accounts_notifications.sql.');}
+  }
+  if(telegramReady(env)){
+   try{await db('telegram_recovery',{query:'select=id&limit=0'});add('Migration 006: Telegram recovery',true);}
+   catch{add('Migration 006: Telegram recovery',false,'Apply migrations/006_telegram_recovery.sql.');}
+  }
+  if(env.FEATURE_TELEGRAM_REGISTRATION==='true'){
+   try{await db('telegram_registrations',{query:'select=token_hash&limit=0'});add('Migration 007: Telegram registration',true);}
+   catch{add('Migration 007: Telegram registration',false,'Apply migrations/007_telegram_registration.sql.');}
+  }
+ }
  if(env.SUPABASE_ANON_KEY){
   for(const table of ['users','cases','attachments']){
    try{const response=await fetch(`${env.SUPABASE_URL.replace(/\/$/,'')}/rest/v1/${table}?select=id&limit=1`,{method:'HEAD',signal:AbortSignal.timeout(15000),headers:{apikey:env.SUPABASE_ANON_KEY,Authorization:`Bearer ${env.SUPABASE_ANON_KEY}`}});add(`Anonymous access blocked: ${table}`,[401,403].includes(response.status));}

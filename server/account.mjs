@@ -4,10 +4,33 @@ import {text,phone,password,integer,fail} from './validation.mjs';
 import {token,digest,requireRole,rateLimit,hashPassword} from './security.mjs';
 import {stage2,smsReady,telegramReady,sendSms,telegram} from './providers.mjs';
 import {compare} from 'bcryptjs';
+import {normalizeLogin} from '../public/auth-input.js';
 
 export const otpHash=(id,code,env)=>createHmac('sha256',env.OTP_SECRET||env.SUPABASE_SERVICE_ROLE_KEY).update(`${id}:${code}`).digest('hex');
 export async function handleAccount({path,method,user,body,req,db,env}){
  const rpc=(fn,args)=>db(`rpc/${fn}`,{method:'POST',body:args});
+ if(path==='/auth/recovery/telegram/request'&&method==='POST'){
+  if(!telegramReady(env))throw new HttpError(503,'Telegram orqali tiklash hali ulanmagan.');
+  const login=normalizeLogin(text(body.login,'Login yoki telefon',3,100));
+  await rateLimit(req,db,'telegram-recovery-request',login,{account:3,ip:20});
+  const id=token(),code=String(randomInt(100000,1000000));
+  const found=await rpc('zar_start_telegram_recovery',{p_login:login,p_code_hash:otpHash(id,code,env),p_id:id});
+  if(found){
+   try{await telegram('sendMessage',{chat_id:found.chatId,text:`ZARURIYAT parolni tiklash kodi: ${code}\nKod 10 daqiqa amal qiladi. Uni hech kimga bermang. So‘rovni siz yubormagan bo‘lsangiz, bu xabarni e’tiborsiz qoldiring.`},env);}
+   catch{console.error(JSON.stringify({event:'telegram_recovery_delivery_failure'}));}
+  }
+  // Do not disclose account existence, binding, cooldown or delivery failures.
+  return {ok:true,challenge:id,expiresIn:600,message:'Hisobingizga Telegram oldindan bog‘langan bo‘lsa, kod botga yuboriladi.'};
+ }
+ if(path==='/auth/recovery/telegram/confirm'&&method==='POST'){
+  if(!telegramReady(env))throw new HttpError(503,'Telegram orqali tiklash hali ulanmagan.');
+  const id=text(body.challenge,'So‘rov',64,64),code=text(body.code,'Kod',6,6);
+  if(!/^[a-f0-9]{64}$/.test(id)||!/^\d{6}$/.test(code))fail('Tasdiqlash kodi noto‘g‘ri.');
+  await rateLimit(req,db,'telegram-recovery-confirm',id,{account:10,ip:30});
+  const result=await rpc('zar_confirm_telegram_recovery',{p_id:id,p_code_hash:otpHash(id,code,env),p_password_hash:await hashPassword(password(body.password))});
+  if(!result?.ok)fail('Kod noto‘g‘ri, ishlatilgan yoki muddati tugagan.');
+  return {ok:true};
+ }
  if(path==='/account'&&method==='GET'){
   requireRole(user);
   return {stage2Enabled:stage2(env),phoneVerified:Boolean(user.phone_verified_at),telegramConnected:Boolean(user.telegram_chat_id),smsEnabled:smsReady(env),telegramEnabled:telegramReady(env)};
@@ -49,7 +72,7 @@ export async function handleAccount({path,method,user,body,req,db,env}){
   return {url:`https://t.me/${bot.username}?start=${secret}`,expiresIn:1800};
  }
  if(path==='/account/telegram/unlink'&&method==='POST'){
-  requireRole(user);if(!stage2(env))throw new HttpError(503,'Bu xizmat hali ulanmagan.');
+  requireRole(user);if(!telegramReady(env))throw new HttpError(503,'Telegram bot hali ulanmagan.');
   if(user.telegram_chat_id)await rpc('zar_unlink_telegram',{p_chat_id:user.telegram_chat_id});
   return {ok:true};
  }

@@ -129,3 +129,17 @@ test('subscription pagination preserves the chosen case and deduplicates overlap
  assert.equal(selected,'1');assert.deepEqual(ids,[1,2]);
  assert.equal(context.subscriptionEligibility.offset,100);
 });
+
+test('package forms enforce a numeric minimum including already consumed requests',async()=>{
+ const dialog=source.slice(source.indexOf('async function packageDialog('),source.indexOf('\nlet packageEligibility='));
+ for(const used of [0,3]){
+  let limitAttributes;
+  const pkg={id:1,clientId:3,tier:'comfort',expiresAt:'2027-01-01T18:59:59.999Z',limit:5,used,members:['QA Mijoz']};
+  const context={routeVersion:1,state:{},api:async path=>path==='/clients'?{clients:[]}:{packages:[pkg]},tr:s=>s,
+   modalOpen(){},formError:'',selectField:()=>'',options:()=>'',packageTiers:[{name:'COMFORT'}],packageName:()=> 'COMFORT',textareaField:()=>'',
+   field(name,label,type,value,attributes){if(name==='limit')limitAttributes=attributes;return '';}};
+  await runInNewContext(dialog+';packageDialog(1);',context);
+  assert.match(limitAttributes,new RegExp(`min="${Math.max(1,used)}"`));
+  assert.doesNotMatch(limitAttributes,/\$\{/);
+ }
+});

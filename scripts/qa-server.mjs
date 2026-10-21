@@ -13,6 +13,8 @@ const pg=new PGlite({extensions:{pgcrypto}});
 await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
 await pg.exec(await readFile('supabase-schema.sql','utf8'));
 await pg.exec(await readFile('migrations/002_accounts_notifications.sql','utf8'));
+await pg.exec(await readFile('migrations/006_telegram_recovery.sql','utf8'));
+await pg.exec(await readFile('migrations/007_telegram_registration.sql','utf8'));
 await pg.exec(`
  INSERT INTO partners(name,phone,address,category,hours,region,price,contract_status)
  VALUES('QA hamkor','+998901111115','QA Qarshi','legal','09:00-18:00','Qashqadaryo',0,'active');
