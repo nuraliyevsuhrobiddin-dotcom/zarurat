@@ -28,6 +28,21 @@ before(async()=>{
 });
 after(async()=>{await pg?.close()});
 
+test('plain Start and Help answer with site actions without claiming or verifying an account',async()=>{
+ for(const text of ['/start','/help','/start@qa_register_bot']){
+  const response=await hook(msg(789,{text}));assert.equal(response.statusCode,200);
+  const sent=messages.at(-1);assert.equal(sent.chat_id,789);assert.match(sent.text,/ZARURIYAT/);
+  assert.equal(sent.reply_markup.inline_keyboard[0][0].url,env.PUBLIC_ORIGIN+'/#register');
+  assert.equal(sent.reply_markup.inline_keyboard[1][0].url,env.PUBLIC_ORIGIN+'/#recovery');
+ }
+ assert.equal((await pg.query('SELECT count(*) AS n FROM users')).rows[0].n,0);
+ assert.equal((await pg.query('SELECT count(*) AS n FROM telegram_registrations')).rows[0].n,0);
+ for(const text of ['/start r_invalid','/start '+'a'.repeat(64)]){
+  assert.equal((await hook(msg(789,{text}))).statusCode,200);
+  assert.match(messages.at(-1).text,/havola/);
+ }
+});
+
 test('required registration rejects direct signup without proof and starts without creating an account',async()=>{
  assert.equal((await call('/auth/options')).data.registrationTelegramRequired,true);
  assert.equal((await call('/auth/register',input)).statusCode,400);
