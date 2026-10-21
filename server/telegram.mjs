@@ -1,3 +1,4 @@
+import {telegramStatuses} from './telegram-status.mjs';
 import {timingSafeEqual} from 'node:crypto';
 import {HttpError} from './db.mjs';
 import {digest,token} from './security.mjs';
@@ -48,10 +49,9 @@ export async function handleTelegramWebhook(req,body,db,env){
  return {ok:true};
 }
 
-const statuses={received:'Qabul qilindi',reviewing:'O‘rganilmoqda',searching:'Hamkor izlanmoqda',arranging:'Kelishilmoqda',contacted:'Aloqa o‘rnatildi',completed:'Yakunlandi',cancelled:'Bekor qilindi'};
 export function notificationText(row){
  // Never send descriptions, phone numbers, notes, documents or tracking keys.
- return `ZARURIYAT\nMurojaat: ${row.caseNumber}\nHolat: ${statuses[row.caseStatus]||'Yangilandi'}\nTafsilotlarni shaxsiy kabinetingizda ko‘ring.`;
+ return `ZARURIYAT\nMurojaat: ${row.caseNumber}\nHolat: ${telegramStatuses[row.caseStatus]||'Yangilandi'}\nTafsilotlarni shaxsiy kabinetingizda ko‘ring.`;
 }
 export async function drainNotifications(db,env){
  if(!telegramReady(env))return {enabled:false,sent:0};

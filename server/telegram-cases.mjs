@@ -1,8 +1,8 @@
+import {telegramStatuses} from './telegram-status.mjs';
 import {telegram} from './providers.mjs';
 import {publicConfig} from '../public/supabase-api.js';
 
 export const telegramCasesEnabled=env=>env.FEATURE_TELEGRAM_CASES==='true';
-const statuses={received:'Qabul qilindi',reviewing:'O‘rganilmoqda',searching:'Hamkor izlanmoqda',arranging:'Kelishilmoqda',contacted:'Aloqa o‘rnatildi',completed:'Yakunlandi',cancelled:'Bekor qilindi'};
 const keyboard=rows=>({keyboard:rows.map(row=>row.map(text=>({text}))),resize_keyboard:true,is_persistent:true,input_field_placeholder:'Kerakli bo‘limni tanlang'});
 const menu=keyboard([['📝 Murojaat yuborish'],['📋 Murojaatlarim','🔎 Kuzatish'],['🗂 Xizmatlar','🌐 Shaxsiy kabinet'],['☎️ Aloqa','❓ Yordam']]);
 const cancel=keyboard([['❌ Bekor qilish','🏠 Asosiy menyu']]);
@@ -11,7 +11,7 @@ const categoryLabel=c=>`${categoryIcons[c.id]||'📌'} ${c.name}`;
 const pairs=items=>Array.from({length:Math.ceil(items.length/2)},(_,i)=>items.slice(i*2,i*2+2));
 const categoryMenu=keyboard([...pairs(publicConfig.categories.map(categoryLabel)),['❌ Bekor qilish','🏠 Asosiy menyu']]);
 const statusIcons={received:'📥',reviewing:'🔍',searching:'🤝',arranging:'📅',contacted:'📞',completed:'✅',cancelled:'⛔'};
-const statusLabel=status=>`${statusIcons[status]||'🔔'} ${statuses[status]||'Yangilandi'}`;
+const statusLabel=status=>`${statusIcons[status]||'🔔'} ${telegramStatuses[status]||'Yangilandi'}`;
 const caseMenu=cases=>keyboard([...pairs(cases.map(c=>c.number)),['📋 Murojaatlarim','📝 Murojaat yuborish'],['🏠 Asosiy menyu']]);
 export async function handleTelegramCases(m,db,env){
  if(!telegramCasesEnabled(env)||m.contact||String(m.text||'').startsWith('/start '))return false;

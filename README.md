@@ -42,7 +42,8 @@ Telegramda murojaat yuborish, kuzatish, baholash va bot menyusi:
 
 Telegramga oldindan bog‘lanmagan mijozlar parolni tiklash oynasidagi bot
 havolasidan o‘tib, o‘z kontaktini ulashishi mumkin. Buning uchun
-`migrations/008_telegram_contact_recovery.sql` ni 006 dan keyin qo‘llang.
+006 dan keyin `migrations/008_telegram_contact_recovery.sql`, keyin
+`migrations/009_telegram_recovery_retries.sql` ni qo‘llang.
 Raqam hisobdagiga mos va yagona bo‘lishi kerak. Xodimlar va boshqa
 Telegramga bog‘langan hisoblar bu usul bilan tiklanmaydi.
 
@@ -57,6 +58,3 @@ Maxfiylikdagi yakuniy biznes rekvizitlari, aloqa va saqlash muddati egasi tomoni
 Kunlik zaxira AES-256-GCM bilan shifrlanib yopiq `zaruriyat-backups` bucketiga yoziladi.
 Bu mantiqiy dastur zaxirasi; PostgreSQL PITR o'rnini bosmaydi. Tiklash uchun
 `BACKUP_ENCRYPTION_KEY` alohida xavfsiz saqlanishi zarur. Eski nusxalar avtomatik o'chirilmaydi.
-
-Telegram kontakt orqali tiklash tuzatishlari: 008 dan keyin
-`migrations/009_telegram_recovery_retries.sql` ni bajaring.
