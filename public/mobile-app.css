@@ -167,11 +167,11 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  dialog.mobile-route-page .detail-grid dt{font-size:12px;line-height:1.5;color:#475569}
  dialog.mobile-route-page .detail-grid dd{font-size:14px;line-height:1.65;overflow-wrap:anywhere}
  dialog.mobile-route-page .detail-heading{align-items:flex-start;gap:10px}
- dialog.mobile-route-page .detail-heading h3{font-size:18px;line-height:1.35}
- dialog.mobile-route-page .detail-section h3{font-size:16px}
+ dialog.mobile-route-page .detail-heading :is(h2,h3){font-size:18px;line-height:1.35}
+ dialog.mobile-route-page .detail-section :is(h2,h3){font-size:16px}
  dialog.mobile-route-page .service-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px}
  dialog.mobile-route-page .service-row{padding:14px;border-radius:12px;border-width:1px}
- dialog.mobile-route-page .service-row h3,dialog.mobile-route-page .service-row b{font-size:14px}
+ dialog.mobile-route-page .modal-body .service-row :is(h2,h3),dialog.mobile-route-page .service-row b{font-size:14px}
  dialog.mobile-route-page .description{padding:14px;font-size:14px;line-height:1.65;border-radius:12px}
  dialog.mobile-route-page .muted,dialog.mobile-route-page label small,dialog.mobile-route-page .field-help{color:#475569}
  dialog.mobile-route-page .timeline small,dialog.mobile-route-page .timeline>div small,dialog.mobile-route-page .history small{color:#475569}
@@ -182,6 +182,8 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  dialog.mobile-route-page .file-list{display:grid;grid-template-columns:minmax(0,1fr)}
  dialog.mobile-route-page .file-list .btn{max-width:100%;white-space:normal;justify-content:flex-start;text-align:left;font-size:14px}
  dialog.mobile-route-page .token-box strong,dialog.mobile-route-page .token-box code{overflow-wrap:anywhere;white-space:normal;font-size:16px}
+ dialog.mobile-route-page .btn{max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.5;text-align:center}
+ dialog.mobile-route-page .btn svg{flex-shrink:0}
  /* QUYI NAVIGATSIYA PANELI */
  .mobile-bottom-bar{border-top:1px solid #dfdfd7;background:rgba(255,255,255,.98);box-shadow:0 -2px 10px rgba(21,46,74,.06)}
  .mobile-bottom-bar .mb-item{position:relative;min-height:56px;font-size:10px;font-weight:500;gap:3px;color:#52647b;padding:5px 2px;line-height:1.2;min-width:0;flex:1}
@@ -231,14 +233,14 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  input,select,textarea{font-size:16px;min-height:44px;border-radius:11px;line-height:1.5}
  .field label{font-size:13px;margin-bottom:6px}
  .empty{padding:28px 16px}
- .empty h3{font-size:17px;line-height:1.4}
+ .empty > :is(h2,h3){font-size:17px;line-height:1.4}
  .empty p{font-size:14px;line-height:1.6}
  .empty>svg{width:30px;height:30px}
  .tel-link{min-height:44px;align-items:center;border-radius:10px;font-size:13px}
  .notice{padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6}
  .workspace-content .page-heading p,.empty p,.notice,.error-box{font-size:14px;line-height:1.65}
  .account-settings-row{padding:16px 0;gap:10px}
- .account-settings-row h3{font-size:15px}
+ dialog.mobile-route-page .account-settings-row :is(h2,h3){font-size:15px}
  .account-settings-row p{font-size:13px;line-height:1.6}
  .service-detail-icon{width:48px;height:48px;border-radius:12px;margin-bottom:16px}
  .service-detail-icon svg{width:22px;height:22px}
@@ -719,6 +721,7 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  #app[data-page=home] #services,#app[data-page=home] #how { display:none; }
  #app[data-page=faq]>.site-header { display:none; }
  dialog.mobile-route-page .modal-body h2 { font-size:18px; line-height:1.4; }
+ dialog.mobile-route-page .success > :is(h2,h3) { font-size:23px; line-height:1.35; }
  dialog.mobile-route-page .detail-section h2 { font-size:16px; }
 }
 /* Mobile navigation: compact pages, grouped lists and one contextual tab bar. */
@@ -815,4 +818,9 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 @media(max-width:820px) {
  dialog.mobile-route-page .modal-body { min-height:0; padding-bottom:24px!important; }
  dialog.mobile-route-page > .mobile-bottom-bar { position:static!important; flex:0 0 auto; width:100%; }
+}
+
+@media(max-width:820px){
+ body.route-loading #app{visibility:hidden}
+ body.route-loading:not(.mobile-page-open)::after{content:"Yuklanmoqda?";position:fixed;inset:0;display:grid;place-items:center;background:var(--mob-bg);color:var(--mob-secondary);z-index:40}
 }

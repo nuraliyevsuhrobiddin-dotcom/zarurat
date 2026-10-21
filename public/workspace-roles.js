@@ -8,7 +8,7 @@ export function requestContact(user) {
 export function resetWorkspace(state) {
  Object.assign(state,{
   cases:[],caseOffset:0,casesHasMore:false,partners:[],clients:[],team:[],teamUsers:[],
-  packages:[],paymentData:null,stats:null,notifications:[],authOptions:null,accountDetails:null,caseTabRoute:null,
+  lastSubmission:null,lastTrack:null,trackingPrefill:null,packages:[],paymentData:null,stats:null,notifications:[],authOptions:null,accountDetails:null,caseTabRoute:null,
   filters:{search:'',status:'',category:'',overdue:false,tab:'all'}
  });
 }

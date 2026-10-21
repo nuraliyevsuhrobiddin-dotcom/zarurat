@@ -1,3 +1,4 @@
+import {handleAdminEditing,partnerInput} from './admin-editing.mjs';
 import { createDatabase, HttpError, query } from './db.mjs';
 import { digest, sessionCookie, currentUser, createSession, hashPassword, requireRole, validateOrigin, rateLimit } from './security.mjs';
 import { compare } from 'bcryptjs';
@@ -92,10 +93,12 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
       const secure = Boolean(env.PUBLIC_ORIGIN?.startsWith('https://') || env.VERCEL_URL);
       const rpc = (name, args) => db(`rpc/${name}`, { method: 'POST', body: args });
       let result;
+      const editResult=await handleAdminEditing({path,method,user,body,db,env});
       const accountResult=await handleAccount({path,method,user,body,req,db,env});
       const paymentResult=await handlePaymentRoute({path,method,user,body,req,db,env});
 
-      if(paymentResult!==undefined)result=paymentResult;
+      if(editResult!==undefined)result=editResult;
+      else if(paymentResult!==undefined)result=paymentResult;
       else if(accountResult!==undefined)result=accountResult;
       else if(path==='/telegram/webhook'&&method==='POST')result=await handleTelegramWebhook(req,body,db,env);
       else if(path==='/jobs/notifications'&&method==='GET'){
@@ -212,7 +215,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           requireRole(user,staff);
           if (method === 'GET') result = { partners: (await db('partners', { query: query({ order: 'id.desc' }) })).map(p => ({ ...p, contractStatus: p.contract_status })) };
           else if (method === 'POST') {
-            const row = { name: text(body.name,'Nomi',2,150), phone: phone(body.phone), address: text(body.address,'Manzil',2,250), category: choice(body.category,publicConfig.categories.map(c=>c.id),'Yo‘nalish'), hours: text(body.hours,'Ish vaqti',2,100), region: choice(body.region,publicConfig.regions,'Hudud'), price: integer(body.price,'Narx',0,1000000000), contract_status: choice(body.contractStatus,['active','pending','expired'],'Shartnoma') };
+            const row = partnerInput(body);
             result = { partner: (await db('partners',{method:'POST',body:row}))[0] };
           }
         } else if (['/team','/clients','/users'].includes(path) && method === 'GET') {
@@ -242,7 +245,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           result={packages:(await db('packages',{query:query(filters)})).map(p=>({id:p.id,clientId:p.client_id,clientName:p.users?.name,tier:packageName(p.tier),expiresAt:p.expires_at,limit:p.service_limit,used:p.package_usage.length,usedCaseIds:p.package_usage.map(u=>u.case_id),remaining:Math.max(0,p.service_limit-p.package_usage.length),status:new Date(p.expires_at)<new Date()?'expired':p.package_usage.length>=p.service_limit?'exhausted':'active',members:p.members}))};
         } else if (path === '/packages' && method === 'POST') {
           requireRole(user,staff);
-          if(!Array.isArray(body.members)||body.members.length>30)fail('Oila a’zolari ro‘yxati noto‘g‘ri.');
+          if(!Array.isArray(body.members)||!body.members.length||body.members.length>30)fail('Oila a’zolari ro‘yxati noto‘g‘ri.');
           const saved=await rpc('zar_save_package',{p_client_id:integer(body.clientId,'Mijoz'),p_tier:choice(packageValue(body.tier),packageTiers.map(item=>item.id),'Paket'),p_expires_at:timestamp(body.expiresAt),p_limit:integer(body.limit,'Limit',1,1000),p_members:body.members.map(m=>text(m,'A’zo',2,100))});
           result={package:{...saved,tier:packageName(saved.tier)}};
         } else if (packageUse && method === 'POST') {

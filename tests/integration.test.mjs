@@ -26,6 +26,35 @@ async function call(path,{method='GET',body,cookie}={}){
  const res={headers:{},setHeader(k,v){this.headers[k]=v;},end(s){this.data=JSON.parse(s);}};
  await handler(req,res);return res;
 }
+
+test('admin edits preserve record identity, validate fields and enforce role boundaries',async()=>{
+ const boss=await call('/auth/login',{method:'POST',body:{login:'boss',password:'secure-password'}});
+ const cookie=boss.headers['Set-Cookie'].split(';')[0];
+ const input={name:'Editable partner',phone:'+998905555555',address:'Qarshi markazi',category:'legal',hours:'09:00-18:00',region:'Qashqadaryo',price:100,contractStatus:'pending'};
+ const created=await call('/partners',{method:'POST',cookie,body:input});
+ assert.equal(created.statusCode,200);
+ const id=created.data.partner.id;
+ const edited=await call(`/partners/${id}`,{method:'PATCH',cookie,body:{...input,name:'Updated partner',price:0,contractStatus:'active'}});
+ assert.equal(edited.statusCode,200);assert.equal(edited.data.partner.id,id);assert.equal(edited.data.partner.price,0);
+ assert.equal((await call(`/partners/${id}`,{cookie})).data.partner.name,'Updated partner');
+ assert.equal((await call(`/partners/${id}`,{method:'PATCH',cookie,body:{...input,phone:'bad'}})).statusCode,400);
+ assert.equal((await call('/partners/999999',{method:'PATCH',cookie,body:input})).statusCode,404);
+ const client=await call('/auth/register',{method:'POST',body:{name:'Edit client',phone:'+998906666666',password:'client-password',consent:true}});
+ const clientCookie=client.headers['Set-Cookie'].split(';')[0],clientId=client.data.user.id;
+ assert.equal((await call(`/partners/${id}`,{method:'PATCH',cookie:clientCookie,body:input})).statusCode,403);
+ const profile={name:'Corrected client',phone:'+998906666666',login:'corrected-client'};
+ const changed=await call(`/users/${clientId}/profile`,{method:'PATCH',cookie,body:profile});
+ assert.equal(changed.statusCode,200);assert.equal(changed.data.user.name,profile.name);assert.equal(changed.data.user.password_hash,undefined);
+ assert.equal((await call(`/users/${clientId}/profile`,{method:'PATCH',cookie:clientCookie,body:profile})).statusCode,403);
+ assert.equal((await call(`/users/${clientId}/profile`,{method:'PATCH',cookie,body:{...profile,role:'director'}})).statusCode,400);
+ const pkg={clientId,tier:'STANDARD',expiresAt:new Date(Date.now()+86400000).toISOString(),limit:5,members:['First member','Second member']};
+ const saved=await call('/packages',{method:'POST',cookie,body:pkg});assert.equal(saved.statusCode,200);
+ const packageId=saved.data.package.id;
+ assert.equal((await call(`/packages/${packageId}`,{method:'PATCH',cookie,body:{...pkg,clientId:1}})).statusCode,400);
+ assert.equal((await call(`/packages/${packageId}`,{method:'PATCH',cookie,body:{...pkg,members:[]}})).statusCode,400);
+ const updated=await call(`/packages/${packageId}`,{method:'PATCH',cookie,body:{...pkg,limit:7}});
+ assert.equal(updated.statusCode,200);assert.equal(updated.data.package.id,packageId);assert.equal(updated.data.package.service_limit,7);
+});
 test('registration, request, tracking, file access, ownership, coordinator, completion, rating and logout',async()=>{
  const registration=await call('/auth/register',{method:'POST',body:{name:'Test mijoz',phone:'+998902222222',password:'client-password',consent:true}});
  assert.equal(registration.statusCode,200);assert.equal(registration.data.user.role,'client');
