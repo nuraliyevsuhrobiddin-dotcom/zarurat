@@ -49,8 +49,26 @@ export function validateOrigin(req, env) {
   if (['GET', 'HEAD'].includes(req.method)) return;
   const expected = env.PUBLIC_ORIGIN || (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : null);
   if (!expected) throw new HttpError(503, 'Serverning sayt manzili sozlanmagan.');
-  const origin = req.headers.origin;
-  if (!origin || origin !== new URL(expected).origin) throw new HttpError(403, 'So‘rov manbasi tasdiqlanmadi.');
+  let origin = req.headers.origin;
+  if (!origin && req.headers.referer) {
+    try { origin = new URL(req.headers.referer).origin; } catch {}
+  }
+  let valid = false;
+  if (origin) {
+    try {
+      const oUrl = new URL(origin);
+      const eUrl = new URL(expected);
+      if (oUrl.origin === eUrl.origin) {
+        valid = true;
+      } else {
+        const isLocal = h => h === 'localhost' || h === '127.0.0.1';
+        if (isLocal(oUrl.hostname) && isLocal(eUrl.hostname) && oUrl.port === eUrl.port && oUrl.protocol === eUrl.protocol) {
+          valid = true;
+        }
+      }
+    } catch {}
+  }
+  if (!valid) throw new HttpError(403, 'So‘rov manbasi tasdiqlanmadi.');
   if (!String(req.headers['content-type'] || '').startsWith('application/json')) throw new HttpError(415, 'JSON shaklida so‘rov yuboring.');
 }
 export async function rateLimit(req, db, kind, identifier = '',limits={}) {
