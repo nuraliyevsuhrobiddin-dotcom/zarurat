@@ -30,9 +30,13 @@ export async function handleRegistrationMessage(message,db,env){
   return true;
  }
  if(!message.contact)return false;
+ // Registration only depends on migration 007. Check that flow before handing
+ // a contact to optional password-recovery handlers (migrations 006/008).
+ const pending=await db('telegram_registrations',{query:new URLSearchParams({select:'token_hash,phone',chat_id:`eq.${message.chat.id}`,consumed_at:'is.null',expires_at:`gt.${new Date().toISOString()}`,order:'started_at.desc',limit:'1'}).toString()});
+ if(!pending.length)return false;
  const own=message.contact.user_id===message.from.id&&!message.forward_origin&&!message.forward_from&&!message.forward_from_chat&&!message.via_bot;
  const mobile=normalizePhone(message.contact.phone_number);
- const matched=own&&/^\+998\d{9}$/.test(mobile)&&await rpc('zar_verify_telegram_registration',{p_chat_id:message.chat.id,p_phone:mobile});
+ const matched=own&&mobile===pending[0].phone&&await rpc('zar_verify_telegram_registration',{p_chat_id:message.chat.id,p_phone:mobile});
  await telegram('sendMessage',{chat_id:message.chat.id,text:matched?'Telefon raqamingiz tasdiqlandi. Saytga qaytib «Kabinet yaratish» tugmasini bosing.':'Raqam tasdiqlanmadi. Saytda kiritgan raqamingiz Telegramdagi o‘z raqamingiz bilan bir xil bo‘lishi kerak. Faqat «Telefon raqamimni ulashish» tugmasidan foydalaning.',...(matched?{reply_markup:{remove_keyboard:true}}:{})},env);
  return true;
 }

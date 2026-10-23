@@ -38,6 +38,15 @@ test('anonymous tasks and public pages retain public mobile navigation',()=>{
  }
 });
 
+test('mobile staff navigation shows a badge for unread notifications',()=>{
+ const html=runInNewContext(bottomNav+';mobileBottomNav();',{
+  location:{hash:'#cabinet/overview'},state:{user:{role:'director'},notificationUnread:3},
+  staff:()=>true,pageLabel:lat=>lat,icon:()=>'',esc:value=>value
+ });
+ assert.match(html,/notification-badge/);
+ assert.match(html,/>3<\/span>/);
+});
+
 test('direct mobile detail links return to their parent without adding a history loop',()=>{
  for(const [hash,parent] of [['#service?category=legal','#services'],['#cabinet/case?id=1','#cabinet/cases'],['#cabinet/package-edit?id=1','#cabinet/packages'],['#cabinet/menu','#home']]){
   let rendered=0;
@@ -56,7 +65,7 @@ test('mobile Back uses the existing predecessor after refresh',()=>{
 });
 
 test('initial session loading never renders the public landing page',async()=>{
- const init=source.slice(source.indexOf('async function init(){'),source.lastIndexOf('\ninit();'));
+ const init=source.slice(source.indexOf('async function init(){'),source.lastIndexOf('\ninit().then(()=>pollStaffNotifications());'));
  let resolveAuth,rendered=0;
  const auth=new Promise(resolve=>{resolveAuth=resolve;});
  const context={navigationReady:true,state:{},app:{dataset:{}},api:path=>path==='/config'?Promise.resolve({categories:[]}):auth,route:()=> 'cases',landing(){assert.fail('Landing would flash before the requested page');},renderRoute(){rendered++;},toast(){}};

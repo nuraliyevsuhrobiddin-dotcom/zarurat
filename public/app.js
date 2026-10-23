@@ -8,6 +8,7 @@ import { mobileCategoryGroups, categoryIcons, mobileSectionDescriptions } from '
 import { requestContact, teamGroups, resetWorkspace } from './workspace-roles.js';
 import { requestStatuses, sectionHelp, copyTranslations } from './interface-copy.js';
 import { notificationCopy } from './notification-copy.js';
+import { notificationChanges } from './notification-alerts.js';
 import { deadlineChanges } from './case-deadline.js';
 import { paymentPanel, paymentMoney } from './payments.js';
 const $ = (s, el = document) => el.querySelector(s);
@@ -16,7 +17,23 @@ let navigationReady=false;
 history.replaceState({...history.state,zarEntry:true},'');
 if('scrollRestoration' in history)history.scrollRestoration='manual';
 function savedScript(){try{return localStorage.getItem('zar_script')==='cyr'?'cyr':'lat';}catch{return 'lat';}}
-const state = { config: null, backendConfigured: null, lastSubmission: null, lastTrack: null, user: null, cases: [], caseOffset: 0, casesHasMore: false, partners: [], clients: [], team: [], packages: [], stats: null, notifications: [], filters: { search: '', status: '', category: '', overdue: false, tab: 'all' }, script: savedScript() };
+const state = { config: null, backendConfigured: null, lastSubmission: null, lastTrack: null, user: null, cases: [], caseOffset: 0, casesHasMore: false, partners: [], clients: [], team: [], packages: [], stats: null, notifications: [], notificationKnownIds: null, notificationUnread: 0, filters: { search: '', status: '', category: '', overdue: false, tab: 'all' }, script: savedScript() };
+function savedNotificationSound(){try{return localStorage.getItem('zar_notification_sound')!=='off';}catch{return true;}}
+let notificationSoundEnabled=savedNotificationSound(),notificationAudioContext=null,notificationPollRunning=false;
+function unlockNotificationSound(){
+ if(!notificationSoundEnabled)return;
+ const AudioContextType=window.AudioContext||window.webkitAudioContext;
+ if(!AudioContextType)return;
+ try{notificationAudioContext ||= new AudioContextType();if(notificationAudioContext.state==='suspended')notificationAudioContext.resume().catch(()=>{});}catch{}
+}
+function playNotificationSound(){
+ if(!notificationSoundEnabled)return;
+ unlockNotificationSound();
+ const context=notificationAudioContext;if(!context)return;
+ const play=()=>{const now=context.currentTime;for(let i=0;i<2;i++){const start=now+i*.22,osc=context.createOscillator(),gain=context.createGain();osc.type='sine';osc.frequency.value=i?1046:784;gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(.16,start+.025);gain.gain.exponentialRampToValueAtTime(.0001,start+.18);osc.connect(gain);gain.connect(context.destination);osc.start(start);osc.stop(start+.19);}};
+ if(context.state==='running')play();else context.resume().then(play).catch(()=>{});
+}
+document.addEventListener('pointerdown',unlockNotificationSound,{passive:true});
 const cyrMap = {
   'Assalomu alaykum': 'Ассалому алайкум',
   'So‘nggi murojaatlarim': 'Сўнгги мурожаатларим',
@@ -434,7 +451,7 @@ function mobileBottomNav(context='auto') {
  if(context==='auto')context=path.startsWith('cabinet/')||(state.user&&['request','checkout','track'].includes(path))?'cabinet':'public';
  const cabinet=context==='cabinet'&&state.user;
  const navItems=cabinet?state.user.role==='partner'?[['cabinet/overview','home','Asosiy','Асосий'],['cabinet/cases','file','Xizmatlar','Хизматлар'],['cabinet/menu','menu','Menyu','Меню']]:staff()?[['cabinet/overview','chart','Umumiy','Умумий'],['cabinet/cases','file','Murojaatlar','Мурожаатлар'],['request','plus','Yangi','Янги'],['cabinet/notifications','bell','Xabarlar','Хабарлар'],['cabinet/menu','menu','Menyu','Меню']]:[['cabinet/overview','home','Asosiy','Асосий'],['cabinet/cases','file','Murojaatlar','Мурожаатлар'],['request','plus','Yangi','Янги'],['cabinet/packages','users','Oila','Оила'],['cabinet/menu','menu','Menyu','Меню']]:[['home','home','Asosiy','Асосий'],['services','layers','Xizmatlar','Хизматлар'],['request','plus','Murojaat','Мурожаат'],['track','clock','Kuzatish','Кузатиш'],['menu','menu','Menyu','Меню']];
- return `<nav class="mobile-bottom-bar ${cabinet?'workspace-bottom-bar':''}" data-context="${cabinet?'cabinet':'public'}" aria-label="${pageLabel(cabinet?'Kabinet navigatsiyasi':'Asosiy navigatsiya',cabinet?'Кабинет навигацияси':'Асосий навигация')}">${navItems.map(([target,ico,lat,cyr])=>`<a href="#${target}" class="mb-item ${target==='request'?'mb-action':''}" data-nav-section="${target}">${target==='request'?`<span class="mb-action-circle">${icon(ico)}</span>`:icon(ico)}<span>${esc(pageLabel(lat,cyr))}</span></a>`).join('')}</nav>`;
+ return `<nav class="mobile-bottom-bar ${cabinet?'workspace-bottom-bar':''}" data-context="${cabinet?'cabinet':'public'}" aria-label="${pageLabel(cabinet?'Kabinet navigatsiyasi':'Asosiy navigatsiya',cabinet?'Кабинет навигацияси':'Асосий навигация')}">${navItems.map(([target,ico,lat,cyr])=>`<a href="#${target}" class="mb-item ${target==='request'?'mb-action':''}" data-nav-section="${target}">${target==='request'?`<span class="mb-action-circle">${icon(ico)}</span>`:icon(ico)}<span>${esc(pageLabel(lat,cyr))}</span>${cabinet&&target==='cabinet/notifications'&&state.notificationUnread?`<span class="notification-badge" aria-label="${state.notificationUnread} ${pageLabel('yangi xabar','янги хабар')}">${state.notificationUnread>99?'99+':state.notificationUnread}</span>`:''}</a>`).join('')}</nav>`;
 }
 function menuRow(url,label,ico,description='',action='') {
  const attrs=action?`data-action="${action}"`:`href="${esc(url)}"`;
@@ -498,6 +515,7 @@ function route(){const [prefix,view]=location.hash.slice(1).split('?')[0].split(
  }
 async function renderRoute() {
  const version=++routeVersion,view=route();
+ if(view==='notifications'){state.notificationUnread=0;updateNotificationBadges();}
  const requestedTab=new URLSearchParams(location.hash.split('?')[1]||'').get('tab')||'all';if(view==='cases'&&state.caseTabRoute!==location.hash&&['all','new','open','overdue','completed','cancelled'].includes(requestedTab))state.filters={search:'',status:'',category:'',overdue:false,tab:requestedTab};if(view==='cases')state.caseTabRoute=location.hash;
  document.body.classList.remove('route-loading');modal.close();document.body.classList.remove('mobile-page-open');modal.classList.remove('mobile-route-page');modal.removeAttribute('role');modal.removeAttribute('aria-modal');
  const formPage=renderMobilePage(version);
@@ -505,6 +523,7 @@ async function renderRoute() {
  if(!view){landing();renderPublicSection();finishPage();return;}
  if(!state.user){location.hash='login';return;}
  workspaceShell(view);
+ updateNotificationBadges();
  if(view==='menu'){ $('#main').innerHTML=mobileMenu(true);finishPage();return; }
  if(view==='settings'&&state.user.role==='partner'){await accountSettings();return;}
  try {
@@ -522,6 +541,7 @@ async function renderRoute() {
   if(view==='packages'&&state.user.role!=='partner')all.paymentData='/payments';
   const results=await Promise.all(Object.entries(all).map(async([key,path])=>[key,await api(path)]));if(version!==routeVersion)return;
   results.forEach(([key,result])=>state[key]=key==='stats'?(result.stats||result):key==='teamUsers'?(result.users||[]):['authOptions','paymentData'].includes(key)?result:result[key]);
+  if(view==='notifications')syncNotifications(state.notifications);
   const casePage=results.find(([key])=>key==='cases')?.[1];state.caseOffset=state.cases.length;state.casesHasMore=!!casePage?.hasMore;
   let html;
   if(view==='overview')html=staff()?staffOverview():personalOverview();
@@ -712,10 +732,52 @@ function notificationDeliveryNotice(){
  return `<div class="notice"><p><strong>SMS:</strong> ${sms?pageLabel('ulangan. Faqat telefonni tasdiqlash va parolni tiklash kodi uchun. Murojaat holati haqida SMS yuborilmaydi.','уланган. Фақат телефонни тасдиқлаш ва паролни тиклаш коди учун. Мурожаат ҳолати ҳақида SMS юборилмайди.'):pageLabel('ulanmagan. Mijozga SMS yuborilmaydi.','уланмаган. Мижозга SMS юборилмайди.')}</p><p><strong>Telegram:</strong> ${tg?pageLabel('ulangan. Murojaat xabarlari faqat botga bog‘langan mijozlarga yuboriladi.','уланган. Мурожаат хабарлари фақат ботга боғланган мижозларга юборилади.'):pageLabel('ulanmagan. Telegramga xabar yuborilmaydi.','уланмаган. Telegramга хабар юборилмайди.')}</p><p>${pageLabel('Quyidagi yozuvlar tizim tayyorlagan xabarlardir. «Navbatda» — hali yuborilmagan. Telefon raqami ko‘rsatilishi SMS yuborilganini anglatmaydi.','Қуйидаги ёзувлар тизим тайёрлаган хабарлардир. «Навбатда» — ҳали юборилмаган. Телефон рақами кўрсатилиши SMS юборилганини англатмайди.')}</p></div>`;
 }
 function notificationStatusLabel(n){if(n.source==='internal'||n.status==='recorded')return pageLabel('Panelda qayd etildi','Панелда қайд этилди');return tr(({queued:'Navbatda',sent:'Yuborilgan',failed:'Yuborilmadi',sending:'Yuborilmoqda',pending:'Ulanish kutilmoqda'})[n.status]||'Ulanish kutilmoqda');}
+function notificationRowsMarkup(){
+ if(!state.notifications.length)return empty(tr('Xabarnomalar yo‘q'),tr('Murojaatlar o‘zgarganda xabarlar shu yerda qayd etiladi.'));
+ if(mobileViewport())return `<div class="mobile-record-list">${state.notifications.map(n=>`<article class="mobile-record notification-record"><header><span class="record-icon">${icon('bell')}</span><div><h2>${esc(n.caseNumber||'—')}</h2><p>${date(n.createdAt,true)}</p></div><span class="pill ${n.status==='sent'?'green':n.status==='failed'?'red':'amber'}">${notificationStatusLabel(n)}</span></header><h3>${esc(notificationCopy(n,state.script).title)}</h3><p class="notification-message">${esc(notificationCopy(n,state.script).body)}</p><dl><div class="record-full"><dt>${tr('Telefon')}</dt><dd>${esc(n.recipientPhone||'—')}</dd></div></dl>${n.case_id?`<button class="btn outline small" data-action="case" data-id="${esc(n.case_id)}">${pageLabel('Murojaatni ochish','Мурожаатни очиш')}</button>`:''}</article>`).join('')}</div>`;
+ return `<div class="table-scroll"><table><thead><tr><th>${tr('Murojaat')}</th><th>${pageLabel('Mijoz telefoni','Мижоз телефони')}</th><th>${tr('Hodisa')}</th><th>${tr('Xabar')}</th><th>${pageLabel('Qayd yoki yuborish holati','Қайд ёки юбориш ҳолати')}</th><th>${tr('Sana')}</th></tr></thead><tbody>${state.notifications.map(n=>`<tr><td>${n.case_id?`<button class="row-link" data-action="case" data-id="${esc(n.case_id)}">${esc(n.caseNumber||'—')}</button>`:esc(n.caseNumber||'—')}</td><td>${esc(n.recipientPhone||'—')}</td><td>${esc(notificationCopy(n,state.script).title)}</td><td>${esc(notificationCopy(n,state.script).body)}</td><td><span class="pill amber">${esc(notificationStatusLabel(n))}</span></td><td>${date(n.createdAt,true)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function notificationSoundControl(){
+ const label=pageLabel(notificationSoundEnabled?'Ovozni o‘chirish':'Ovozni yoqish',notificationSoundEnabled?'Овозни ўчириш':'Овозни ёқиш');
+ return `<button id="notification-sound-control" class="btn outline small" type="button" data-action="notification-sound" aria-pressed="${notificationSoundEnabled}">${icon(notificationSoundEnabled?'bell':'close')} ${label}</button>`;
+}
 function notificationsPage(){
- const isCyr=state.script==='cyr';
- if(mobileViewport())return `${pageHeading(pageLabel('Xabarnomalar','Хабарномалар'),pageLabel('Murojaatlar bo‘yicha xabarlar tarixi va yuborish holati','Мурожаатлар бўйича хабарлар тарихи ва юбориш ҳолати'))}${notificationDeliveryNotice()}<p class="small-text muted">${pageLabel('So‘nggi 100 ta qayd. «Panelda qayd etildi» — markaz ichidagi bildirishnoma, mijozga yuborilgan xabar emas.','Сўнгги 100 та қайд. «Панелда қайд этилди» — марказ ичидаги билдиришнома, мижозга юборилган хабар эмас.')}</p><div class="form-actions"><a class="btn outline small" href="#cabinet/cases?tab=new">${pageLabel('Yangi murojaatlar','Янги мурожаатлар')}</a><a class="btn outline small" href="#cabinet/cases?tab=completed">${pageLabel('Yakunlangan ishlar','Якунланган ишлар')}</a></div>${state.notifications.length?`<div class="mobile-record-list">${state.notifications.map(n=>`<article class="mobile-record notification-record"><header><span class="record-icon">${icon('bell')}</span><div><h2>${esc(n.caseNumber||'—')}</h2><p>${date(n.createdAt,true)}</p></div><span class="pill ${n.status==='sent'?'green':n.status==='failed'?'red':'amber'}">${notificationStatusLabel(n)}</span></header><h3>${esc(notificationCopy(n,state.script).title)}</h3><p class="notification-message">${esc(notificationCopy(n,state.script).body)}</p><dl><div class="record-full"><dt>${tr('Telefon')}</dt><dd>${esc(n.recipientPhone||'—')}</dd></div></dl>${n.case_id?`<button class="btn outline small" data-action="case" data-id="${esc(n.case_id)}">${pageLabel('Murojaatni ochish','Мурожаатни очиш')}</button>`:''}</article>`).join('')}</div>`:empty(tr('Xabarnomalar yo‘q'),tr('Murojaatlar o‘zgarganda xabarlar shu yerda qayd etiladi.'))}`;
- return `${pageHeading(isCyr?'Хабарлар тарихи':'Xabarlar tarixi',isCyr?'Мурожаатлар бўйича тайёрланган хабарлар.':'Murojaatlar bo‘yicha tayyorlangan xabarlar.')}${notificationDeliveryNotice()}<p class="small-text muted">${pageLabel('So‘nggi 100 ta qayd. «Panelda qayd etildi» — markaz ichidagi bildirishnoma, mijozga yuborilgan xabar emas.','Сўнгги 100 та қайд. «Панелда қайд этилди» — марказ ичидаги билдиришнома, мижозга юборилган хабар эмас.')}</p><div class="form-actions"><a class="btn outline small" href="#cabinet/cases?tab=new">${pageLabel('Yangi murojaatlar','Янги мурожаатлар')}</a><a class="btn outline small" href="#cabinet/cases?tab=completed">${pageLabel('Yakunlangan ishlar','Якунланган ишлар')}</a></div><div class="panel">${state.notifications.length?`<div class="table-scroll"><table><thead><tr><th>${tr("Murojaat")}</th><th>${pageLabel("Mijoz telefoni","Мижоз телефони")}</th><th>${tr("Hodisa")}</th><th>${tr("Xabar")}</th><th>${pageLabel('Qayd yoki yuborish holati','Қайд ёки юбориш ҳолати')}</th><th>${tr("Sana")}</th></tr></thead><tbody>${state.notifications.map(n=>`<tr><td>${n.case_id?`<button class="row-link" data-action="case" data-id="${esc(n.case_id)}">${esc(n.caseNumber||'—')}</button>`:esc(n.caseNumber||'—')}</td><td>${esc(n.recipientPhone||'—')}</td><td>${esc(notificationCopy(n,state.script).title)}</td><td>${esc(notificationCopy(n,state.script).body)}</td><td><span class="pill amber">${esc(notificationStatusLabel(n))}</span></td><td>${date(n.createdAt,true)}</td></tr>`).join('')}</tbody></table></div>`:empty('Xabarnomalar yo‘q','Murojaatlar o‘zgarganda xabarlar shu yerda qayd etiladi.')}</div>`;
+ const mobile=mobileViewport();
+ const title=pageLabel('Xabarnomalar','Хабарномалар');
+ const subtitle=pageLabel('Murojaatlar bo‘yicha xabarlar tarixi va yuborish holati','Мурожаатлар бўйича хабарлар тарихи ва юбориш ҳолати');
+ const refreshCopy=pageLabel('Yangi xabarlar sahifa ochiq turganda avtomatik yangilanadi. Ovoz telefonning jim rejimi va brauzer ruxsatlariga bog‘liq.','Янги хабарлар саҳифа очиқ турганда автоматик янгиланади. Овоз телефоннинг овозсиз режими ва браузер рухсатларига боғлиқ.');
+ return `${pageHeading(title,subtitle)}${notificationDeliveryNotice()}<div class="notification-live notice"><p>${refreshCopy}</p>${notificationSoundControl()}</div><p class="small-text muted">${pageLabel('So‘nggi 100 ta qayd. «Panelda qayd etildi» — markaz ichidagi bildirishnoma, mijozga yuborilgan xabar emas.','Сўнгги 100 та қайд. «Панелда қайд этилди» — марказ ичидаги билдиришнома, мижозга юборилган хабар эмас.')}</p><div class="form-actions"><a class="btn outline small" href="#cabinet/cases?tab=new">${pageLabel('Yangi murojaatlar','Янги мурожаатлар')}</a><a class="btn outline small" href="#cabinet/cases?tab=completed">${pageLabel('Yakunlangan ishlar','Якунланган ишлар')}</a></div><div id="notification-feed" class="${mobile?'':'panel'}">${notificationRowsMarkup()}</div>`;
+}
+function updateNotificationBadges(){
+ const count=state.notificationUnread;
+ document.querySelectorAll('[data-nav-section="cabinet/notifications"],.side-nav a[href="#cabinet/notifications"]').forEach(link=>{
+  let badge=link.querySelector('.notification-badge');
+  if(!count){badge?.remove();return;}
+  if(!badge){badge=document.createElement('span');badge.className='notification-badge';link.append(badge);}
+  badge.textContent=count>99?'99+':String(count);
+  badge.setAttribute('aria-label',`${count} ${pageLabel('yangi xabar','янги хабар')}`);
+ });
+}
+function syncNotifications(rows){
+ const changes=notificationChanges(rows,state.notificationKnownIds);
+ state.notificationKnownIds=changes.knownIds;
+ state.notifications=rows;
+ if(changes.incoming.length){
+  const viewing=route()==='notifications';
+  if(!viewing)state.notificationUnread+=changes.incoming.length;
+  playNotificationSound();
+  if(!viewing)toast(pageLabel('Yangi xabar keldi. Xabarnomalar bo‘limiga o‘ting.','Янги хабар келди. Хабарномалар бўлимига ўтинг.'));
+ }
+ if(route()==='notifications'){
+  state.notificationUnread=0;
+  const feed=$('#notification-feed');if(feed)feed.innerHTML=notificationRowsMarkup();
+ }
+ updateNotificationBadges();
+}
+async function pollStaffNotifications(){
+ if(notificationPollRunning||document.visibilityState==='hidden'||!staff())return;
+ notificationPollRunning=true;
+ try{const result=await api('/notifications');syncNotifications(result.notifications||[]);}catch{}finally{notificationPollRunning=false;}
 }
 document.addEventListener('click',async e=>{
  if(e.target.closest('.skip-link')){e.preventDefault();const main=$('#main');if(main){main.tabIndex=-1;main.focus();main.scrollIntoView();}return;}
@@ -736,6 +798,7 @@ document.addEventListener('click',async e=>{
   else if(action==='user-new'){state.partners=(await api('/partners')).partners;userDialog();}
   else if(action==='track')trackingDialog();
   else if(action==='track-prefill'){state.trackingPrefill={number:button.dataset.number,token:button.dataset.token};if(location.hash==='#track')await renderRoute();else location.hash='track';}
+  else if(action==='notification-sound'){notificationSoundEnabled=!notificationSoundEnabled;try{localStorage.setItem('zar_notification_sound',notificationSoundEnabled?'on':'off');}catch{}if(notificationSoundEnabled){unlockNotificationSound();playNotificationSound();}button.outerHTML=notificationSoundControl();}
   else if(action==='login')loginDialog();
   else if(action==='register')loginDialog(true);
   else if(action==='privacy')privacyDialog();
@@ -865,4 +928,7 @@ async function init(){
   else{if(state.user)app.dataset.page='';await renderRoute();}
  }catch(error){app.innerHTML=`<main class="public-error" id="main">${brand()}<h1 style="margin-top:30px">${tr("Hozir ulanish imkoni bo‘lmadi.")}</h1><p class="muted">${esc(tr(error.message))}</p><button class="btn" id="retry-init">${tr("Qayta urinib ko‘rish")}</button></main>`;$('#retry-init').addEventListener('click',init);}
 }
-init();
+init().then(()=>pollStaffNotifications());
+window.setInterval(pollStaffNotifications,15000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pollStaffNotifications();});
+window.addEventListener('focus',pollStaffNotifications);

@@ -7,6 +7,7 @@ const db=createDatabase();
 // Verify schema existence without submitting SQL or modifying customer rows.
 await db('telegram_links',{query:'select=token_hash&limit=0'});
 await db('telegram_recovery',{query:'select=id&limit=0'});
+if(process.env.FEATURE_TELEGRAM_REGISTRATION==='true')await db('telegram_registrations',{query:'select=token_hash&limit=0'});
 if(process.env.FEATURE_TELEGRAM_CASES==='true')await db('telegram_case_drafts',{query:'select=chat_id&limit=0'});
 const bot=await telegram('getMe',{},process.env);
 if(!bot.is_bot||!bot.username)throw new Error('Telegram bot tekshiruvi o‘tmadi.');

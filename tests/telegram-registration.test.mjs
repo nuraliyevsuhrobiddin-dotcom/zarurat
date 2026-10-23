@@ -6,7 +6,7 @@ import {pgcrypto} from '@electric-sql/pglite/contrib/pgcrypto';
 import {createHandler} from '../server/api.mjs';
 import {testDatabase} from './helpers/database.mjs';
 import {digest} from '../server/security.mjs';
-let pg,handler;const messages=[];
+let pg,handler,rejectRecoveryTables=false;const messages=[];
 const mockFetch=async(url,options)=>{assert.ok(String(url).startsWith('https://api.telegram.org/bot'));if(String(url).endsWith('/getMe'))return {ok:true,json:async()=>({ok:true,result:{username:'qa_register_bot',is_bot:true}})};messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{message_id:messages.length}})}};
 const env={PUBLIC_ORIGIN:'https://registration.example',FEATURE_TELEGRAM:'true',FEATURE_TELEGRAM_REGISTRATION:'true',TELEGRAM_BOT_TOKEN:'qa',TELEGRAM_WEBHOOK_SECRET:'qa-secret',SESSION_SECRET:'qa-session',SUPABASE_SERVICE_ROLE_KEY:'qa'};
 const input={name:'Verified client',phone:'+998901234567',password:'client-password-2026',consent:true};
@@ -24,7 +24,11 @@ const contact=(id,phone,extra={})=>hook(msg(id,{contact:{phone_number:phone,user
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
  for(const file of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/007_telegram_registration.sql','migrations/008_telegram_contact_recovery.sql','migrations/009_telegram_recovery_retries.sql'])await pg.exec(await readFile(file,'utf8'));
- handler=createHandler({db:testDatabase(pg),env});
+ const database=testDatabase(pg);
+ handler=createHandler({db:(resource,options)=>{
+  if(rejectRecoveryTables&&['telegram_recovery','telegram_recovery_contacts'].includes(resource))throw new Error('optional recovery migration is unavailable');
+  return database(resource,options);
+ },env});
 });
 after(async()=>{await pg?.close()});
 
@@ -73,6 +77,17 @@ test('Start alone, stolen contact, forwarded contact and different phone cannot 
  const cookie=created.headers['Set-Cookie'].split(';')[0];const account=await call('/account',undefined,{cookie});assert.equal(account.data.phoneVerified,true);assert.equal(account.data.telegramConnected,true);
  assert.equal((await call('/auth/register',{...input,verification:proof})).statusCode,400);
  assert.equal((await pg.query('SELECT count(*) AS n FROM users')).rows[0].n,1);
+});
+
+test('registration webhook works without optional recovery migrations',async()=>{
+ await pg.exec('DELETE FROM rate_limits');
+ rejectRecoveryTables=true;
+ try{
+  const r=await start('+998901234571');assert.equal(r.statusCode,200);
+  await begin(r.data.challenge,571);assert.equal(messages.at(-1).reply_markup.keyboard[0][0].request_contact,true);
+  const verified=await contact(571,'+998901234571');assert.equal(verified.statusCode,200);
+  assert.ok((await pg.query('SELECT verified_at FROM telegram_registrations WHERE token_hash=$1',[digest(r.data.challenge)])).rows[0].verified_at);
+ }finally{rejectRecoveryTables=false}
 });
 
 test('expired proofs and an already registered Telegram cannot create another account',async()=>{

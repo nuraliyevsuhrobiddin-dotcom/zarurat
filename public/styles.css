@@ -426,6 +426,10 @@ svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width:
 /* ─── NOTICES ─────────────────────────────── */
 .error-box { padding: 13px 16px; background: var(--c-red-l); color: var(--c-red); border: 1px solid #fecaca; border-radius: var(--r-md); font-size: 13px; line-height: 1.55; margin: 14px 0; font-weight: 500; }
 .notice { padding: 14px 18px; background: var(--c-blue-light); border: 1px solid var(--c-blue-mid); border-radius: var(--r-md); font-size: 13px; line-height: 1.6; color: var(--c-blue-deep); margin: 16px 0; }
+.notification-live { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notification-live p { margin: 0; }
+.notification-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 11px; line-height: 1; font-weight: 800; box-shadow: 0 0 0 2px #fff; }
+.side-nav .notification-badge { margin-left: auto; }
 .notice.warning { background: var(--c-amber-l); color: #92400e; border-color: #fde68a; }
 .empty { padding: 56px 24px; text-align: center; color: var(--c-muted); font-size: 13px; line-height: 1.7; }
 .empty > svg { display: block; margin: 0 auto 18px; width: 38px; height: 38px; color: var(--c-faint); }
@@ -898,6 +902,7 @@ tr.clickable:hover { background: #f7f9fc; }
     justify-content: space-around;
   }
   .mb-item {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -920,6 +925,8 @@ tr.clickable:hover { background: #f7f9fc; }
   .mb-item:active { transform: scale(0.92); }
   .mb-item:hover, .mb-item:focus-visible, .mb-item.active { color: var(--c-blue); }
   .mb-item.active svg { stroke: var(--c-blue); stroke-width: 2.2; }
+  .mb-item .notification-badge { position: absolute; top: 3px; left: calc(50% + 5px); }
+  .notification-live { align-items: flex-start; flex-direction: column; }
   .mb-item.mb-action { position: relative; top: 0; }
   .mb-action-circle {
     width: 42px;
