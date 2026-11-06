@@ -29,6 +29,8 @@ if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
   try{add('Migration 004: Payme',await db('rpc/zar_payment_ready',{method:'POST',body:{}})===true,'Apply migrations/004_payme.sql in Supabase SQL Editor.');}
   catch{add('Migration 004: Payme',false,'Apply migrations/004_payme.sql in Supabase SQL Editor.');}
  }
+ try{add('Migration 011: active coordinator assignment',await db('rpc/zar_assignment_ready',{method:'POST',body:{}})===true,'Apply migrations/011_active_coordinator_assignment.sql after existing migrations.');}
+ catch{add('Migration 011: active coordinator assignment',false,'Apply migrations/011_active_coordinator_assignment.sql after existing migrations.');}
  if(env.FEATURE_STAGE2==='true'||telegramReady(env)||telegramFeaturesRequested){
   for(const [table,fields] of [['users','blocked_at,phone_verified_at,telegram_chat_id'],['telegram_links','token_hash'],['otp_challenges','id']]){
    try{await db(table,{query:`select=${fields}&limit=0`});add(`Migration 002: ${table}`,true);}

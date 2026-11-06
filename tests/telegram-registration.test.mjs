@@ -20,6 +20,7 @@ const hook=(message,extra={})=>call('/telegram/webhook',{message},{'x-telegram-b
 const msg=(id,body)=>({chat:{id,type:'private'},from:{id},...body});
 const start=phone=>call('/auth/register/telegram/start',{phone,consent:true});
 const begin=(proof,id)=>hook(msg(id,{text:'/start r_'+proof}));
+const status=(proof,phone)=>call('/auth/register/telegram/status',{challenge:proof,phone});
 const contact=(id,phone,extra={})=>hook(msg(id,{contact:{phone_number:phone,user_id:id},...extra}));
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
@@ -55,6 +56,22 @@ test('required registration rejects direct signup without proof and starts witho
  const r=await start('+998 (90) 123-45-67');assert.equal(r.statusCode,200);assert.match(r.data.challenge,/^[a-f0-9]{48}$/);
  assert.ok(new URL(r.data.url).searchParams.get('start').length<=64);
  const rows=(await pg.query('SELECT * FROM telegram_registrations')).rows;assert.equal(rows.length,1);assert.equal(rows[0].token_hash,digest(r.data.challenge));assert.equal(rows[0].phone,input.phone);assert.ok(!JSON.stringify(rows).includes(input.password));assert.equal((await pg.query('SELECT count(*) AS n FROM users')).rows[0].n,0);
+});
+
+test('registration status is phone-bound, read-only and does not reveal a Telegram identity',async()=>{
+ await pg.exec('DELETE FROM rate_limits');const mobile='+998901234580',r=await start(mobile),proof=r.data.challenge;
+ assert.equal((await status(proof,mobile)).data.status,'pending');
+ assert.deepEqual((await status(proof,'+998901234581')).data,{status:'expired',verified:false});
+ assert.equal((await status('bad',mobile)).statusCode,400);
+ await begin(proof,580);await contact(580,mobile);
+ const verified=await status(proof,mobile);assert.equal(verified.statusCode,200);assert.equal(verified.data.verified,true);
+ assert.deepEqual(Object.keys(verified.data).sort(),['expiresAt','status','verified']);
+ for(let i=0;i<25;i++)assert.equal((await status(proof,mobile)).statusCode,200);
+ assert.equal((await pg.query('SELECT count(*) AS n FROM users WHERE phone=$1',[mobile])).rows[0].n,0);
+ await pg.query('UPDATE telegram_registrations SET consumed_at=now() WHERE token_hash=$1',[digest(proof)]);
+ assert.equal((await status(proof,mobile)).data.status,'expired');
+ const next=await start('+998901234582');await pg.query('UPDATE telegram_registrations SET expires_at=now()-interval \'1 second\' WHERE token_hash=$1',[digest(next.data.challenge)]);
+ assert.equal((await status(next.data.challenge,'+998901234582')).data.status,'expired');
 });
 
 test('Start alone, stolen contact, forwarded contact and different phone cannot verify registration',async()=>{

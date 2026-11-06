@@ -1,0 +1,8 @@
+.auth-field[hidden],.registration-telegram a[hidden]{display:none!important}
+.registration-intro,.registration-telegram{margin:12px 0 18px;line-height:1.6;overflow-wrap:anywhere}
+.registration-intro p,.registration-telegram p{margin:8px 0}
+.registration-intro a{color:#1758ca;text-decoration:underline;text-underline-offset:3px}
+.registration-telegram ol{padding-left:22px;margin:12px 0}
+.registration-telegram li{margin-bottom:8px}
+.registration-telegram .form-actions{display:flex;flex-wrap:wrap;gap:10px}
+.registration-telegram [data-registration-status]{font-weight:600}

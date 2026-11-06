@@ -145,7 +145,7 @@ test('package forms enforce a numeric minimum including already consumed request
   let limitAttributes;
   const pkg={id:1,clientId:3,tier:'comfort',expiresAt:'2027-01-01T18:59:59.999Z',limit:5,used,members:['QA Mijoz']};
   const context={routeVersion:1,state:{},api:async path=>path==='/clients'?{clients:[]}:{packages:[pkg]},tr:s=>s,
-   modalOpen(){},formError:'',selectField:()=>'',options:()=>'',packageTiers:[{name:'COMFORT'}],packageName:()=> 'COMFORT',textareaField:()=>'',
+   modalOpen(){},pageLabel:lat=>lat,formError:'',selectField:()=>'',options:()=>'',packageTiers:[{name:'COMFORT'}],packageName:()=> 'COMFORT',textareaField:()=>'',
    field(name,label,type,value,attributes){if(name==='limit')limitAttributes=attributes;return '';}};
   await runInNewContext(dialog+';packageDialog(1);',context);
   assert.match(limitAttributes,new RegExp(`min="${Math.max(1,used)}"`));

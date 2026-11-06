@@ -18,6 +18,36 @@ test('API rejects unauthenticated private routes and forged local storage cannot
  const res=await request('/cases',{headers:{'x-role':'director'}});
  assert.equal(res.statusCode,401);
 });
+
+test('ordinary registration needs no Telegram and cannot create an admin account',async()=>{
+ const calls=[];
+ const db=async(resource,options)=>{
+  calls.push([resource,options]);
+  if(resource==='rpc/zar_rate_limit')return true;
+  if(resource==='rpc/zar_create_user')return {id:19,name:'New client',phone:'+998901234567',role:'client'};
+  if(resource==='users')return [{id:19,password_hash:testHash}];
+  return [];
+ };
+ const result=await request('/auth/register',{method:'POST',headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json'},body:{name:'New client',phone:'+998901234567',password:'long-password',consent:true,role:'director'},db});
+ assert.equal(result.statusCode,200);
+ assert.equal(result.data.user.role,'client');
+ assert.equal(calls.find(([resource])=>resource==='rpc/zar_create_user')[1].body.p_role,'client');
+ assert.match(result.headers['Set-Cookie'],/HttpOnly/);
+ assert.ok(!calls.some(([resource])=>resource.includes('telegram')));
+});
+
+test('a guest can submit a request without registering',async()=>{
+ let input;
+ const db=async(resource,options)=>{
+  if(resource==='rpc/zar_rate_limit')return true;
+  if(resource==='rpc/zar_create_request'){input=options.body;return {number:'ZAR-123456',token:'guest-tracking-token'};}
+  return [];
+ };
+ const result=await request('/requests',{method:'POST',headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json'},body:{name:'Guest client',phone:'+998901234567',region:"Toshkent shahri",category:'other',description:'Oilaviy masala haqida maslahat kerak.',consent:true},db});
+ assert.equal(result.statusCode,200);
+ assert.equal(input.p_user_id,null);
+ assert.equal(result.data.number,'ZAR-123456');
+});
 test('Vercel rewritten route resolves the same session endpoint',async()=>{
  const res=await request('/index?route=auth/me');
  assert.equal(res.statusCode,200);assert.equal(res.data.user,null);

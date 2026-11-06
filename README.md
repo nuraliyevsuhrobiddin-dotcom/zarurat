@@ -27,6 +27,15 @@ To'liq ko'rsatma: [joylashtirish va migratsiya](docs/ISHGA-TUSHIRISH.md).
 Payme to‘lovi va oylik tariflar: [sozlash, test va ishga tushirish](docs/PAYME-ISHGA-TUSHIRISH.md). Kalitlar uchun `.env` va `.env.example` da bo‘sh maydonlar bor.
 Tekshirish: `npm test` ' Node API va PostgreSQL/PGlite integratsion testlar.
 
+Google uchun ochiq xizmat sahifalari, sitemap va aloqa ma’lumotlarini qayta yaratish:
+`npm run build:search`. Chiqarishdan oldin `npm test` va `npm run check:ready` bajariladi.
+Telegram ro‘yxatdan o‘tishni haqiqiy botga xabar yubormasdan sinash:
+`node scripts/qa-registration.mjs`.
+
+`.env*`, `artifacts/`, `.cache/`, `.vercel/`, mahalliy baza va `node_modules/`
+GitHub’ga kiritilmaydi. `.env.example` sozlash uchun namuna sifatida saqlanadi.
+`public/google*.html` Google egalik tasdig‘i fayli; uni saytdan olib tashlamang.
+
 Qarshidagi dastlabki murojaat formasi ism, telefon va vaziyatning qisqacha bayonini
 so‘raydi. Koordinator keyingi ma’lumotlarni kabinetda aniqlashtiradi.
 Mavjud baza uchun `migrations/003_intake_clarification.sql` kerak.

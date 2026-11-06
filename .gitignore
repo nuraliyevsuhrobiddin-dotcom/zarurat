@@ -9,8 +9,7 @@ artifacts/
 *.log
 .agent-cache/
 .cache/
-
-.vercel
-.env*
-!.env.example
-!.env.production.example
+.vercel/
+.agents/
+.codex/
+.aws/

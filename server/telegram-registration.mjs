@@ -1,11 +1,20 @@
 import {randomBytes} from 'node:crypto';
 import {HttpError} from './db.mjs';
 import {digest,rateLimit} from './security.mjs';
-import {phone,fail} from './validation.mjs';
+import {phone,text,fail} from './validation.mjs';
 import {telegramReady,telegram} from './providers.mjs';
 import {normalizePhone} from '../public/auth-input.js';
 
 export const registrationTelegramRequired=env=>env.FEATURE_TELEGRAM_REGISTRATION==='true';
+export async function telegramRegistrationStatus({body,req,db,env}){
+ if(!registrationTelegramRequired(env)||!telegramReady(env))throw new HttpError(503,'Telegram orqali ro‘yxatdan o‘tish hali ulanmagan.');
+ const challenge=text(body.challenge,'Tasdiqlash havolasi',48,48),mobile=phone(body.phone);
+ if(!/^[a-f0-9]{48}$/.test(challenge))fail('Tasdiqlash havolasi noto‘g‘ri.');
+ await rateLimit(req,db,'registration-status',digest(challenge),{ip:600,account:300});
+ const [proof]=await db('telegram_registrations',{query:new URLSearchParams({select:'verified_at,expires_at,consumed_at',token_hash:`eq.${digest(challenge)}`,phone:`eq.${mobile}`,limit:'1'}).toString()});
+ if(!proof||proof.consumed_at||Date.parse(proof.expires_at)<=Date.now())return {status:'expired',verified:false};
+ return {status:proof.verified_at?'verified':'pending',verified:!!proof.verified_at,expiresAt:proof.expires_at};
+}
 export async function startTelegramRegistration({body,req,db,env}){
  if(!registrationTelegramRequired(env)||!telegramReady(env))throw new HttpError(503,'Telegram orqali ro‘yxatdan o‘tish hali ulanmagan.');
  if(body.consent!==true)fail('Ro‘yxatdan o‘tish uchun rozilik kerak.');
@@ -25,7 +34,7 @@ export async function handleRegistrationMessage(message,db,env){
  const start=String(message.text||'').match(/^\/start r_([a-f0-9]{48})$/);
  if(start){
   const pending=await rpc('zar_start_telegram_registration',{p_token_hash:digest(start[1]),p_chat_id:message.chat.id});
-  const text=!pending?'Havola eskirgan yoki ishlatilgan. Saytga qaytib tasdiqlashni qayta boshlang.':pending.verified?'Raqamingiz tasdiqlangan. Saytga qaytib «Kabinet yaratish» tugmasini bosing.':`ZARURIYAT: ${pending.phone} raqamini tasdiqlash uchun quyidagi «Telefon raqamimni ulashish» tugmasini bosing. Begona kontakt yubormang.`;
+  const text=!pending?'Havola eskirgan yoki ishlatilgan. Saytga qaytib tasdiqlashni qayta boshlang.':pending.verified?'Raqamingiz tasdiqlangan. Saytga qayting: tasdiq avtomatik tekshiriladi. Keyin ism va parolni kiritib kabinet yarating.':`ZARURIYAT: ${pending.phone} raqamini tasdiqlash uchun avval quyidagi «Telefon raqamimni ulashish» tugmasini bosing. Keyin saytga qayting. Faqat Telegramdagi o‘z raqamingiz qabul qilinadi.`;
   await telegram('sendMessage',{chat_id:message.chat.id,text,...(pending&&!pending.verified?{reply_markup:{keyboard:[[{text:'Telefon raqamimni ulashish',request_contact:true}]],resize_keyboard:true,one_time_keyboard:true}}:{reply_markup:{remove_keyboard:true}})},env);
   return true;
  }
@@ -37,6 +46,6 @@ export async function handleRegistrationMessage(message,db,env){
  const own=message.contact.user_id===message.from.id&&!message.forward_origin&&!message.forward_from&&!message.forward_from_chat&&!message.via_bot;
  const mobile=normalizePhone(message.contact.phone_number);
  const matched=own&&mobile===pending[0].phone&&await rpc('zar_verify_telegram_registration',{p_chat_id:message.chat.id,p_phone:mobile});
- await telegram('sendMessage',{chat_id:message.chat.id,text:matched?'Telefon raqamingiz tasdiqlandi. Saytga qaytib «Kabinet yaratish» tugmasini bosing.':'Raqam tasdiqlanmadi. Saytda kiritgan raqamingiz Telegramdagi o‘z raqamingiz bilan bir xil bo‘lishi kerak. Faqat «Telefon raqamimni ulashish» tugmasidan foydalaning.',...(matched?{reply_markup:{remove_keyboard:true}}:{})},env);
+ await telegram('sendMessage',{chat_id:message.chat.id,text:matched?'Telefon raqamingiz tasdiqlandi. Saytga qayting — tasdiq avtomatik aniqlanadi. Ism va parolni kiritib, «Kabinet yaratish»ni bosing.':'Raqam tasdiqlanmadi. Saytdagi raqam Telegramdagi o‘z raqamingiz bilan bir xil bo‘lishi kerak. Saytda «Raqamni o‘zgartirish» orqali to‘g‘rilang yoki botdagi «Telefon raqamimni ulashish» tugmasidan foydalaning.',...(matched?{reply_markup:{inline_keyboard:[[{text:'Saytga qaytish',url:new URL('/#register',env.PUBLIC_ORIGIN).href}]]}}:{})},env);
  return true;
 }

@@ -1,15 +1,16 @@
-const base='https://zarurat-inky.vercel.app';
+const base='https://www.zaruriyat.uz';
 const me=await fetch(base+'/api/auth/me');
 const auth=await me.json();
 console.log('Session endpoint:',me.status,'Configured:',auth.configured);
 if(!me.ok||auth.configured!==true)throw new Error('Deployment not configured yet');
-if(!process.env.ADMIN_PHONE||!process.env.ADMIN_PASSWORD){console.log('Stored admin login not available');process.exit(0);}
+const adminLogin=process.env.ADMIN_LOGIN||process.env.ADMIN_PHONE;
+if(!adminLogin||!process.env.ADMIN_PASSWORD)throw new Error('Set ADMIN_LOGIN (or ADMIN_PHONE) and ADMIN_PASSWORD.');
 const login=await fetch(base+'/api/auth/login',{
  method:'POST',headers:{Origin:base,'Content-Type':'application/json'},
- body:JSON.stringify({login:process.env.ADMIN_PHONE,password:process.env.ADMIN_PASSWORD})
+ body:JSON.stringify({login:adminLogin,password:process.env.ADMIN_PASSWORD})
 });
 console.log('Stored admin login HTTP:',login.status);
-if(!login.ok){console.log('Account login must be verified with the existing account password.');process.exit(0);}
+if(!login.ok)throw new Error('Account login failed. Verify the configured login and password.');
 const cookie=login.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
 try{
  for(const path of ['/users','/notifications','/stats','/cases','/partners','/packages']){

@@ -1,5 +1,15 @@
 # ZARURIYAT — Payme sozlash
 
+Jonli endpointni to‘lov yaratmasdan tekshirish: `npm run check:payme`.
+U sukut bo‘yicha `https://www.zaruriyat.uz` manzilini, ishchi kalit qabul
+qilinishini va test kaliti rad etilishini tekshiradi. Boshqa domen uchun
+`PAYME_VERIFY_ORIGIN` ni belgilang. Kalitlar hisobotga chiqarilmaydi.
+
+Paymedan qaytilganda kabinet holatni 3 soniyada bir, ko‘pi bilan 1 daqiqa
+tekshiradi. To‘lov faqat server tasdig‘idan so‘ng muvaffaqiyatli ko‘rsatiladi.
+12 soatdan oshmagan, hali boshlanmagan to‘lovni tarixdagi
+«To‘lovni davom ettirish» havolasi orqali qayta ochish mumkin.
+
 Tariflar: STANDARD 99 000 so‘m/oy (4 nafargacha), COMFORT 199 000 so‘m/oy (5 nafargacha), PREMIUM 399 000 so‘m/oy (6 nafargacha). Summa serverda va SQL funksiyasida belgilanadi, Paymega tiyinlarda yuboriladi. Mijoz kartasi yoki karta kodi saytimizda saqlanmaydi: to‘lov Payme sahifasida bajariladi.
 
 ## 1. Baza

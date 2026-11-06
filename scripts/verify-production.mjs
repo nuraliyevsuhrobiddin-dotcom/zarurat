@@ -4,7 +4,7 @@ import { readFile, access } from 'node:fs/promises';
 import { parseEnv } from 'node:util';
 import { createHash } from 'node:crypto';
 
-const base='https://zarurat-inky.vercel.app';
+const base='https://www.zaruriyat.uz';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const files=['index.html','app.js','api.js','auth-input.js','package-tiers.js','site-content.js','service-content.js','ui-localization.js','styles.css','mobile-app.css','manifest.json','images/qarshi-center.jpg'];
 const mismatches=[];
@@ -26,12 +26,13 @@ if(invalid.status!==400)throw new Error('Production request validation failed');
 const candidates=[];const seen=new Set();
 for(const file of ['.env','.env.vercel','.vercel/.env.production.local']){
  try{await access(file);const values=parseEnv(await readFile(file,'utf8'));
-  if(values.ADMIN_PHONE&&values.ADMIN_PASSWORD){const id=hash(values.ADMIN_PHONE+'\0'+values.ADMIN_PASSWORD);if(!seen.has(id)){seen.add(id);candidates.push(values);}}
+  const login=values.ADMIN_LOGIN||values.ADMIN_PHONE;
+  if(login&&values.ADMIN_PASSWORD){const id=hash(login+'\0'+values.ADMIN_PASSWORD);if(!seen.has(id)){seen.add(id);candidates.push({...values,ADMIN_LOGIN:login});}}
  }catch{}
 }
 let authenticated=false;
 for(const values of candidates){
- const response=await mutation('/auth/login',{login:values.ADMIN_PHONE,password:values.ADMIN_PASSWORD});
+ const response=await mutation('/auth/login',{login:values.ADMIN_LOGIN,password:values.ADMIN_PASSWORD});
  console.log('Stored account login HTTP:',response.status);
  if(!response.ok)continue;
  const cookie=response.headers.getSetCookie().map(value=>value.split(';')[0]).join('; ');
@@ -48,3 +49,4 @@ for(const values of candidates){
  }finally{await mutation('/auth/logout',{},cookie);}
 }
 console.log('Authenticated staff verification:',authenticated?'passed':'requires valid current account login');
+if(!authenticated)throw new Error('Staff login verification failed.');

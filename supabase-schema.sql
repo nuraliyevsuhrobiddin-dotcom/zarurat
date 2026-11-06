@@ -223,7 +223,7 @@ ALTER TABLE public.cases ALTER COLUMN due_at DROP NOT NULL;
 CREATE OR REPLACE FUNCTION public.zar_update_case(p_id BIGINT,p_changes JSONB,p_actor_id BIGINT)
 RETURNS VOID LANGUAGE plpgsql SET search_path=public,extensions,pg_temp AS $$
 DECLARE c cases; actor users; next_status TEXT; BEGIN
-  SELECT * INTO actor FROM users WHERE id=p_actor_id AND role IN ('operator','director');
+  SELECT * INTO actor FROM users u WHERE id=p_actor_id AND role IN ('operator','director') AND to_jsonb(u)->>'blocked_at' IS NULL;
   IF actor.id IS NULL THEN RAISE EXCEPTION 'Ruxsat yo‘q.'; END IF;
   SELECT * INTO c FROM cases WHERE id=p_id FOR UPDATE;
   IF c.id IS NULL THEN RAISE EXCEPTION 'Murojaat topilmadi.'; END IF;
@@ -234,6 +234,11 @@ DECLARE c cases; actor users; next_status TEXT; BEGIN
   END IF;
   IF next_status='cancelled' AND length(trim(coalesce(p_changes->>'note','')))=0 THEN RAISE EXCEPTION 'Bekor qilish sababini ichki qaydga yozing.'; END IF;
   IF p_changes->>'coordinator_id' IS NOT NULL AND NOT EXISTS(SELECT 1 FROM users WHERE id=(p_changes->>'coordinator_id')::BIGINT AND role IN ('operator','director')) THEN RAISE EXCEPTION 'Koordinator noto‘g‘ri.'; END IF;
+  -- Keep existing assignments readable/editable after a block, but never assign new work to blocked staff.
+  IF p_changes->>'coordinator_id' IS NOT NULL AND (p_changes->>'coordinator_id')::BIGINT IS DISTINCT FROM c.coordinator_id THEN
+    PERFORM 1 FROM users u WHERE id=(p_changes->>'coordinator_id')::BIGINT AND role IN ('operator','director') AND to_jsonb(u)->>'blocked_at' IS NULL FOR SHARE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Faol koordinatorni tanlang.'; END IF;
+  END IF;
   UPDATE cases SET status=next_status,priority=coalesce(p_changes->>'priority',priority),
     due_at=CASE WHEN p_changes ? 'due_at' THEN (p_changes->>'due_at')::TIMESTAMPTZ ELSE due_at END,
     category=coalesce(p_changes->>'category',category),region=coalesce(p_changes->>'region',region),
@@ -257,6 +262,10 @@ DECLARE c cases; actor users; next_status TEXT; BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION public.zar_capabilities() RETURNS JSONB LANGUAGE sql SET search_path=public,pg_temp AS $$ SELECT '{"clarification":true}'::jsonb $$;
+
+CREATE OR REPLACE FUNCTION public.zar_assignment_ready() RETURNS BOOLEAN LANGUAGE sql SET search_path=public,pg_temp AS $$
+ SELECT position('Faol koordinatorni tanlang.' IN pg_get_functiondef('public.zar_update_case(bigint,jsonb,bigint)'::regprocedure))>0
+$$;
 
 
 CREATE OR REPLACE FUNCTION public.zar_client_counts() RETURNS JSONB LANGUAGE sql SET search_path=public,pg_temp AS $$

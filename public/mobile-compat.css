@@ -1,0 +1,170 @@
+/* Preserve the original mobile visual rules for the semantic page host. */
+@media(max-width:820px){
+.mobile-presentation .modal-head{padding:18px 16px 0;background:transparent;border:0}
+.mobile-presentation .modal-head h2,.mobile-presentation .modal-head>.icon-btn{display:none}
+.mobile-presentation .modal-head p{font-size:14px;line-height:1.6;margin:0;color:#475569}
+.mobile-presentation .modal-head:not(:has(p)){padding:0}
+.mobile-presentation .modal-body{padding:18px 16px calc(92px + env(safe-area-inset-bottom))}
+.mobile-presentation .auth-modal-body{padding:20px 16px calc(92px + env(safe-area-inset-bottom))!important}
+.mobile-presentation .auth-dialog-wrap{max-width:480px;margin:auto;padding:20px 16px 22px;background:#fff;border:1px solid #e0e3e7;border-radius:16px;color:#17263b}
+.mobile-presentation .auth-modal-body{padding:18px 16px calc(92px + env(safe-area-inset-bottom))!important}
+.mobile-presentation .auth-dialog-wrap::before{left:16px;right:16px;top:0;height:2px;background:#d9a73a}
+.mobile-presentation .auth-close{display:none}
+.mobile-presentation .auth-brand-row{align-items:center;gap:12px;padding:0;margin-bottom:16px}
+.mobile-presentation .auth-dialog-wrap .auth-logo-icon{width:62px;height:62px;border-radius:14px;background:transparent;flex-shrink:0}
+.mobile-presentation .auth-logo-name{font-size:19px;line-height:1.35;color:#071b3b;letter-spacing:.02em}
+.mobile-presentation .auth-logo-sub{display:none}
+.mobile-presentation .auth-intro{font-size:14px;line-height:1.7;margin-bottom:18px;color:#475569}
+.mobile-presentation .auth-tabs{height:auto;min-height:46px;padding:3px;background:#edf1f7;border-color:#dfe5ee;border-radius:10px;overflow:visible}
+.mobile-presentation .auth-tab{font-size:14px;line-height:1.45;padding:8px 5px;letter-spacing:0;white-space:normal}
+.mobile-presentation .auth-tab:not(.active){color:#334155}
+.mobile-presentation .auth-tab.active{color:#fff}
+.mobile-presentation .auth-tab-slider{top:3px;left:3px;width:calc(50% - 3px);height:calc(100% - 6px);background:#1758ca;border-radius:8px;box-shadow:none}
+.mobile-presentation .auth-form{gap:14px}
+.mobile-presentation .auth-field{margin-bottom:0;gap:6px}
+.mobile-presentation .auth-field label{font-size:14px;line-height:1.5;letter-spacing:0;color:#17263b;margin:0}
+.mobile-presentation .auth-input-wrap{height:auto;min-height:48px}
+.mobile-presentation .auth-input-wrap input{height:48px;min-height:48px;font-size:16px;background:#fff;color:#17263b;border-color:#cbd5e1;padding-left:38px;padding-right:44px}
+.mobile-presentation .auth-field-icon{left:12px;width:16px;stroke:#64748b}
+.mobile-presentation .auth-eye{color:#475569;right:2px}
+.mobile-presentation .auth-label-note,.mobile-presentation .auth-strength-label{font-size:12px;line-height:1.5;color:#475569}
+.mobile-presentation .auth-consent{font-size:14px;line-height:1.75;gap:10px;color:#334155;align-items:flex-start;padding:10px 0;margin:0}
+.mobile-presentation .auth-consent input{width:20px;height:20px;min-height:20px;margin-top:3px}
+.mobile-presentation .auth-submit-btn{min-height:46px;font-size:15px;line-height:1.5;background:#1758ca;box-shadow:none;margin-top:0}
+.mobile-presentation .auth-trust-row{margin-top:20px;padding-top:14px;border-color:#e2e8f0;flex-wrap:wrap;gap:10px}
+.mobile-presentation .auth-trust-item{font-size:12px;line-height:1.5;color:#475569;min-width:70px}
+.mobile-presentation .auth-recovery{font-size:14px;white-space:normal;line-height:1.5}
+.mobile-presentation .field label{font-size:14px;line-height:1.6;letter-spacing:0}
+.mobile-presentation .field-help{font-size:13px;line-height:1.65}
+.mobile-presentation .check-label{font-size:14px;line-height:1.7}
+.mobile-presentation .form-grid{grid-template-columns:1fr;gap:14px}
+.mobile-presentation .form-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding-top:16px;margin-top:16px}
+.mobile-presentation .form-actions>.btn{min-height:44px;justify-content:center}
+.mobile-presentation .modal-body>.btn{width:100%;justify-content:center}
+.mobile-presentation .check-label{font-size:12px;line-height:1.6;margin-top:18px;align-items:flex-start}
+.mobile-presentation .check-label input{min-height:20px;width:20px;height:20px;flex-shrink:0;margin-top:3px}
+.mobile-presentation .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;font-size:14px}
+.mobile-presentation .detail-grid dt{font-size:12px;line-height:1.5;color:#475569}
+.mobile-presentation .detail-grid dd{font-size:14px;line-height:1.65;overflow-wrap:anywhere}
+.mobile-presentation .detail-heading{align-items:flex-start;gap:10px}
+.mobile-presentation .detail-heading :is(h2,h3){font-size:18px;line-height:1.35}
+.mobile-presentation .detail-section :is(h2,h3){font-size:16px}
+.mobile-presentation .service-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.mobile-presentation .service-row{padding:14px;border-radius:12px;border-width:1px}
+.mobile-presentation .modal-body .service-row :is(h2,h3),.mobile-presentation .service-row b{font-size:14px}
+.mobile-presentation .description{padding:14px;font-size:14px;line-height:1.65;border-radius:12px}
+.mobile-presentation .muted,.mobile-presentation label small,.mobile-presentation .field-help{color:#475569}
+.mobile-presentation .timeline small,.mobile-presentation .timeline>div small,.mobile-presentation .history small{color:#475569}
+.mobile-presentation .service-row-head{flex-wrap:wrap;gap:8px;align-items:flex-start}
+.mobile-presentation .service-row b{font-size:15px;line-height:1.6;overflow-wrap:anywhere}
+.mobile-presentation .service-row p,.mobile-presentation .timeline p{font-size:14px;line-height:1.65;overflow-wrap:anywhere}
+.mobile-presentation .timeline small{font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+.mobile-presentation .file-list{display:grid;grid-template-columns:minmax(0,1fr)}
+.mobile-presentation .file-list .btn{max-width:100%;white-space:normal;justify-content:flex-start;text-align:left;font-size:14px}
+.mobile-presentation .token-box strong,.mobile-presentation .token-box code{overflow-wrap:anywhere;white-space:normal;font-size:16px}
+.mobile-presentation .btn{max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.5;text-align:center}
+.mobile-presentation .btn svg{flex-shrink:0}
+.mobile-presentation .account-settings-row :is(h2,h3){font-size:15px}
+}
+@media(min-width:600px) and (max-width:820px){
+.mobile-presentation .modal-body{max-width:640px;margin-left:auto;margin-right:auto}
+}
+@media (max-width: 820px){
+.mobile-presentation .modal-head{ flex: 0 0 auto; }
+.mobile-presentation .modal-head::before{ display: none; }
+.mobile-presentation .mobile-page-header{ flex: 0 0 auto; }
+.mobile-presentation .modal-body{
+    padding: 16px 16px calc(80px + env(safe-area-inset-bottom)) !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+  }
+.mobile-presentation .form-grid{
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+.mobile-presentation .form-actions{
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin-top: 18px !important;
+    padding-top: 14px !important;
+  }
+.mobile-presentation .form-actions .btn{
+    width: 100% !important;
+    justify-content: center !important;
+  }
+.mobile-presentation .service-actions{
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+.mobile-presentation .service-actions select,
+  .mobile-presentation .service-actions .btn{
+    width: 100% !important;
+  }
+}
+@media(max-width:820px){
+.mobile-presentation .modal-body h2{ font-size:18px; line-height:1.4; }
+.mobile-presentation .success > :is(h2,h3){ font-size:23px; line-height:1.35; }
+.mobile-presentation .detail-section h2{ font-size:16px; }
+}
+@media(max-width:820px){
+.mobile-presentation .service-detail-icon{ background:#eaf1fd; }
+.mobile-presentation .modal-body > h2{ font-size:20px; line-height:1.45; margin:0 0 12px; }
+.mobile-presentation .modal-body > p{ font-size:14px; line-height:1.7; color:#475569; }
+}
+@media(max-width:820px){
+.mobile-presentation .modal-body{ min-height:0; padding-bottom:24px!important; }
+.mobile-presentation > .mobile-bottom-bar{ position:static!important; flex:0 0 auto; width:100%; }
+}
+@media(max-width:820px){
+.mobile-presentation .modal-body{ width:100%; min-width:0; box-sizing:border-box; overscroll-behavior:contain; }
+.mobile-presentation .success{ width:100%; min-width:0; text-align:left; overflow-wrap:anywhere; }
+.mobile-presentation .success > :is(h2,h3){ font-size:20px; line-height:1.4; }
+.mobile-presentation .success > p{ font-size:14px; line-height:1.6; }
+.mobile-presentation .success-icon{ margin:0 auto 16px; }
+.mobile-presentation .token-box{ min-width:0; max-width:100%; padding:14px; }
+.mobile-presentation .token-box label{ letter-spacing:0; line-height:1.5; overflow-wrap:anywhere; }
+.mobile-presentation .token-box code{ font-size:13px; letter-spacing:0; word-break:break-all; }
+.mobile-presentation .success .btn{ width:100%; height:auto; white-space:normal; }
+}
+
+.request-service-selection{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 20px}
+.request-service-selection small,.request-service-selection strong{display:block}
+.request-service-selection .text-btn{flex-shrink:0;min-height:44px}
+.checkout-summary{margin:18px 0;border:1px solid #dce5f0;border-radius:12px;padding:14px;background:#fff}
+.checkout-summary .package-services{margin:0}
+.checkout-summary p{margin-top:12px}
+.manual-package-label,.monthly-subscription-label{font-size:12px;line-height:1.6;color:#52647b}
+.center-map{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:13px;color:#1758ca;text-decoration:underline;text-underline-offset:3px}
+.center-map svg{width:14px;height:14px}
+.service-search-controls{display:flex;gap:8px;align-items:center;margin-bottom:18px}
+.service-search-controls input{flex:1;min-width:0;min-height:44px;font-size:16px;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;background:#fff;color:#071b3b}
+.service-search-controls .text-btn{min-height:44px;flex-shrink:0}
+.service-unknown-link{margin:18px 0;font-size:13px;line-height:1.6}
+.service-unknown-link a{display:inline-flex;min-height:44px;align-items:center;color:#1758ca;text-decoration:underline}
+.mobile-service-group[hidden],.service-tile[hidden],#service-search-empty[hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:820px){
+ body.mobile-page-open{overflow:visible;height:auto;min-height:100dvh;padding-bottom:0}
+ .mobile-page-open #app{display:block}
+ .mobile-app{min-height:100dvh}
+ .mobile-form-content{min-width:0;max-width:100%;padding:0 0 calc(90px + env(safe-area-inset-bottom))}
+ .mobile-presentation{width:100%;min-width:0;max-width:100%;background:var(--mob-bg);color:var(--mob-ink)}
+ .mobile-presentation .modal-head{display:block;position:static;padding:18px 16px 0;background:transparent;border:0;box-shadow:none}
+ .mobile-presentation .modal-head::before{display:none}
+ .mobile-presentation .modal-head:not(:has(p)){padding:0}
+ .mobile-presentation .modal-body{min-height:0;max-height:none;overflow:visible;max-width:640px;width:100%;box-sizing:border-box;margin:auto;padding:18px 16px 24px!important}
+ .mobile-presentation .auth-modal-body{padding:18px 16px 24px!important}
+ .mobile-presentation .modal-head h2,.mobile-presentation .modal-head>.icon-btn,.mobile-presentation .auth-close{display:none}
+ .mobile-presentation .auth-dialog-wrap{max-width:480px;margin:auto;padding:20px 16px 22px;border:1px solid #e0e3e7;border-radius:16px}
+ .mobile-presentation .success :is(h2,h3){font-size:20px;line-height:1.4}
+ .mobile-presentation .token-box{min-width:0;max-width:100%}
+ .mobile-presentation .token-box code{font-size:13px;word-break:break-all}
+ .mobile-presentation .tracking-secondary-title{font-size:16px;margin:22px 0 14px}
+ .mobile-presentation .request-service-selection{align-items:flex-start;font-size:13px;padding:12px}
+ .mobile-presentation .request-service-selection strong{margin-top:3px;font-size:14px;line-height:1.5}
+ .mobile-presentation .checkout-summary .package-services li{gap:12px;align-items:flex-start}
+ .mobile-presentation .checkout-summary .package-services b{flex-shrink:0}
+}

@@ -88,6 +88,13 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
     const filters={select:'id,client_id,tier,amount,members,mode,status,created_at,paid_at,starts_at,expires_at',order:'created_at.desc',limit:100};
     if (user.role === 'client') filters.client_id=`eq.${user.id}`;
     const payments=await db('payment_orders',{query:query(filters)});
+    // Only the owner can resume a current, unpaid order. Settlement still
+    // requires Payme's authenticated callback and the database checks.
+    if(user.role==='client'&&paymeReady(env))for(const payment of payments){
+      if(payment.status==='pending'&&payment.mode===paymeMode(env)&&Date.parse(payment.created_at)>Date.now()-43200000){
+        payment.checkoutUrl=checkoutUrl(payment,env);
+      }
+    }
     const subscriptions=await db('family_subscriptions',{query:query({select:'*',order:'created_at.desc',limit:100,...(user.role==='client'?{client_id:`eq.${user.id}`}:{})})});
     const usage=subscriptions.length?await db('subscription_usage',{query:query({select:'subscription_id,kind',subscription_id:`in.(${subscriptions.map(s=>s.id).join(',')})`})}):[];
     for(const s of subscriptions)s.used=Object.fromEntries(['legal','psychology','business'].map(kind=>[kind,usage.filter(u=>u.subscription_id===s.id&&u.kind===kind).length]));

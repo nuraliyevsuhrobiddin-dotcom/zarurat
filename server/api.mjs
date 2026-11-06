@@ -7,7 +7,7 @@ import { notificationFeed } from './notification-feed.mjs';
 import {runBackup} from './backup.mjs';
 import {requireJob} from './jobs.mjs';
 import {handleAccount} from './account.mjs';
-import {registrationTelegramRequired,startTelegramRegistration} from './telegram-registration.mjs';
+import {registrationTelegramRequired,startTelegramRegistration,telegramRegistrationStatus} from './telegram-registration.mjs';
 import {stage2,smsReady,telegramReady} from './providers.mjs';
 import {handleTelegramWebhook,drainNotifications} from './telegram.mjs';
 import { text, phone, password as validatePassword, integer, choice, timestamp, requestInput, fail } from './validation.mjs';
@@ -139,6 +139,8 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         result={ok:true};
       } else if(path==='/auth/register/telegram/start'&&method==='POST'){
         result=await startTelegramRegistration({body,req,db,env});
+      } else if(path==='/auth/register/telegram/status'&&method==='POST'){
+        result=await telegramRegistrationStatus({body,req,db,env});
       } else if (path === '/auth/register' && method === 'POST') {
         if (body.consent !== true) fail('Ro‘yxatdan o‘tish uchun rozilik kerak.');
         const name = text(body.name, 'Ism', 2, 100), mobile = phone(body.phone);
@@ -229,7 +231,8 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         } else if (['/team','/clients','/users'].includes(path) && method === 'GET') {
           requireRole(user,path === '/users' ? ['director'] : staff);
           const role = path === '/team' ? 'in.(operator,director)' : path === '/clients' ? 'eq.client' : 'in.(operator,director,partner)';
-          result = { [path === '/clients' ? 'clients' : 'users']: (await db('users',{query:query({select:selectUsers+(stage2(env)?',blocked_at,phone_verified_at,telegram_chat_id':''),role,order:'id.desc'})})).map(profile) };
+          const accountsEnabled=stage2(env)||telegramReady(env);
+          result = { [path === '/clients' ? 'clients' : 'users']: (await db('users',{query:query({select:selectUsers+(accountsEnabled?',blocked_at,phone_verified_at,telegram_chat_id':''),role,order:'id.desc',...(path==='/team'&&accountsEnabled?{blocked_at:'is.null'}:{})})})).map(profile) };
           if(path==='/clients'){const counts=await rpc('zar_client_counts',{}).catch(()=>null);result.clients=result.clients.map(client=>({...client,caseCount:counts?Number(counts[client.id]||0):null}));}
         } else if (path === '/users' && method === 'POST') {
           requireRole(user,['director']);

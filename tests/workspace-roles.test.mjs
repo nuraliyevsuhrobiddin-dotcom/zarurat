@@ -1,6 +1,16 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {requestContact,resetWorkspace} from '../public/workspace-roles.js';
+import {requestContact,resetWorkspace,coordinatorChoices} from '../public/workspace-roles.js';
+
+test('new coordinator choices exclude blocked accounts while preserving an existing assignment',()=>{
+ const team=[{id:1,name:'Active',role:'director'},{id:2,name:'Blocked',role:'operator',blocked:true},{id:3,name:'Other blocked',role:'operator',blocked:true}];
+ assert.deepEqual(coordinatorChoices(team,{coordinatorId:null}),[team[0]]);
+ assert.deepEqual(coordinatorChoices(team,{coordinatorId:1}),[team[0]]);
+ const current={coordinatorId:2,coordinatorName:'Blocked',coordinatorRole:'operator'};
+ assert.deepEqual(coordinatorChoices(team,current),[team[0],{id:2,name:'Blocked',role:'operator',previous:true}]);
+ assert.deepEqual(coordinatorChoices([team[0]],current),[team[0],{id:2,name:'Blocked',role:'operator',previous:true}]);
+ assert.equal(team.length,3);
+});
 
 test('staff and partner details never populate a customer request',()=>{
  for(const role of ['director','operator','partner']){

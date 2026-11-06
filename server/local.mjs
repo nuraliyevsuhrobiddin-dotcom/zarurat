@@ -7,7 +7,7 @@ import { paymeError } from './payme.mjs';
 
 const root = resolve('public');
 const securityHeaders = JSON.parse(await readFile('vercel.json','utf8')).headers[0].headers;
-const types = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml'};
+const types = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.xml':'application/xml; charset=utf-8','.txt':'text/plain; charset=utf-8','.jpg':'image/jpeg','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml'};
 export function createLocalServer(handler = createHandler()) {
 return createServer(async(req,res)=>{
   for(const {key,value} of securityHeaders)res.setHeader(key,value);
@@ -25,7 +25,7 @@ return createServer(async(req,res)=>{
   if(!['GET','HEAD'].includes(req.method)){res.statusCode=405;res.setHeader('Allow','GET, HEAD');res.end();return;}
   try{
     const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
-    const file=resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+    const file=resolve(root,'.'+pathname,pathname.endsWith('/')?'index.html':'');
     if(!file.startsWith(root+'\\')&&!file.startsWith(root+'/')){res.statusCode=403;res.end();return;}
     const bytes=await readFile(file);
     res.setHeader('Content-Type',types[extname(file)]||'application/octet-stream');res.end(bytes);

@@ -5,6 +5,12 @@ export function requestContact(user) {
     : { name: '', phone: '+998' };
 }
 
+export function coordinatorChoices(team, current) {
+ const active=team.filter(user=>!user.blocked);
+ if(current.coordinatorId==null||active.some(user=>user.id===current.coordinatorId))return active;
+ return [...active,{id:current.coordinatorId,name:current.coordinatorName||'',role:current.coordinatorRole,previous:true}];
+}
+
 export function resetWorkspace(state) {
  Object.assign(state,{
   cases:[],caseOffset:0,casesHasMore:false,partners:[],clients:[],team:[],teamUsers:[],
