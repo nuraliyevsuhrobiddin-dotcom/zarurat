@@ -974,3 +974,34 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  .client-case[data-case-status="completed"] { border-left:4px solid #059669 !important; }
  .client-case[data-case-status="cancelled"] { border-left:4px solid #dc2626 !important; }
 }
+
+/* Focus the mobile account flow for first-time visitors. */
+@media (max-width: 820px) {
+ dialog.mobile-route-page .auth-modal-body {
+  padding: calc(14px + env(safe-area-inset-top)) 14px calc(78px + env(safe-area-inset-bottom)) !important;
+  overscroll-behavior: contain;
+ }
+ dialog.mobile-route-page .auth-dialog-wrap {
+  padding: 18px 14px 18px;
+  border-color: #dce5f0;
+  box-shadow: 0 6px 22px rgba(7, 27, 59, .05);
+ }
+ dialog.mobile-route-page .auth-brand-row { margin-bottom: 10px; }
+ dialog.mobile-route-page .auth-dialog-wrap .auth-logo-icon { width: 54px; height: 54px; }
+ dialog.mobile-route-page .auth-intro { margin-bottom: 14px; font-size: 13px; line-height: 1.55; }
+ dialog.mobile-route-page .auth-tabs { min-height: 44px; }
+ dialog.mobile-route-page .auth-tab { min-height: 42px; font-weight: 600; }
+ dialog.mobile-route-page .auth-form { gap: 11px; }
+ dialog.mobile-route-page .auth-field { gap: 4px; }
+ dialog.mobile-route-page .auth-field label { font-size: 13px; }
+ dialog.mobile-route-page .auth-input-wrap,
+ dialog.mobile-route-page .auth-input-wrap input { min-height: 46px; height: 46px; }
+ dialog.mobile-route-page .auth-consent { padding: 5px 0; font-size: 13px; line-height: 1.55; }
+ dialog.mobile-route-page .auth-privacy { min-height: 40px; font-size: 13px; }
+ dialog.mobile-route-page .auth-submit-btn { min-height: 46px; }
+ dialog.mobile-route-page .auth-trust-row { margin-top: 14px; padding-top: 12px; gap: 8px; }
+ dialog.mobile-route-page .auth-trust-item { font-size: 11px; }
+ dialog.mobile-route-page .auth-dialog-wrap:has(#register-form) .auth-trust-row { display: none; }
+ .mobile-bottom-bar .mb-item[href="#login"] { color: #52647b; }
+ .mobile-bottom-bar .mb-item[href="#login"]:active { background-color: #edf2f8; border-radius: 10px; }
+}
