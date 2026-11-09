@@ -7,6 +7,8 @@ const source=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const back=source.slice(source.indexOf('function mobileBack(){'),source.indexOf('\nfunction finishPage()'));
 
 const bottomNav=source.slice(source.indexOf("function mobileBottomNav("),source.indexOf('\nfunction menuRow('));
+const overviewLinks=source.slice(source.indexOf('function overviewQuickLinks()'),source.indexOf('function personalOverview()'));
+const personalOverview=source.slice(source.indexOf('function personalOverview()'),source.indexOf('function responsibleName'));
 test('authenticated mobile tasks retain cabinet navigation on direct links and reloads',()=>{
  for(const role of ['client','partner','director']){
   for(const hash of ['#request','#request?special=1','#checkout?tier=COMFORT','#track']){
@@ -16,13 +18,40 @@ test('authenticated mobile tasks retain cabinet navigation on direct links and r
      staff:()=>role==='director',pageLabel:lat=>lat,icon:()=>'',esc:value=>value
     });
     assert.match(html,/data-context="cabinet"/,`${role} ${hash} from ${from}`);
-    assert.match(html,/href="#cabinet\/menu"/);
+    assert.match(html,/href="#cabinet\/settings"/);
+    assert.match(html,/>Profil<\/span>/);
+    assert.doesNotMatch(html,/href="#cabinet\/menu"/);
     assert.doesNotMatch(html,/href="#services"/);
     if(role==='partner')assert.doesNotMatch(html,/href="#cabinet\/packages"/);
     if(role==='director')assert.match(html,/href="#cabinet\/notifications"/);
    }
   }
  }
+});
+
+test('cabinet menu sections are available on overview and keep role-scoped links',()=>{
+ const sideLinks=[{hash:'#cabinet/cases',textContent:'Murojaatlar'},{hash:'#cabinet/packages',textContent:'Oila paketlari'},{hash:'#cabinet/clients',textContent:'Mijozlar'}];
+ const bottomLinks=[{hash:'#cabinet/cases'},{hash:'#cabinet/packages'}];
+ const html=runInNewContext(overviewLinks+';overviewQuickLinks();',{
+  document:{querySelectorAll:selector=>selector==='.side-nav a'?sideLinks:selector==='.mobile-bottom-bar .mb-item[href]'?bottomLinks:[]},mobileViewport:()=>true,
+  pageLabel:lat=>lat,icon:name=>`<svg data-icon="${name}"></svg>`,esc:value=>value
+ });
+ assert.doesNotMatch(html,/href="#cabinet\/(cases|packages)"/);
+ assert.match(html,/href="#cabinet\/clients"/);
+ assert.doesNotMatch(html,/href="#home"/);
+ assert.match(html,/href="#privacy"/);
+ assert.match(html,/data-action="toggle-script"/);
+});
+
+test('mobile overview leaves request and family details in their dedicated tabs',()=>{
+ const context={state:{user:{role:'client',name:'QA Client'},cases:[],packages:[{id:1}]},terminal:()=>false,
+  pageHeading:()=>'',tr:value=>value,newRequestButton:()=>'',stat:()=>'',icon:()=>'',overviewQuickLinks:()=>'',
+  caseCards:()=>'<div>REQUEST CARDS</div>',packageCards:()=>'<div>FAMILY DETAILS</div>'};
+ const mobile=runInNewContext(personalOverview+';personalOverview();',{...context,mobileViewport:()=>true});
+ assert.doesNotMatch(mobile,/So.ggi murojaatlarim|REQUEST CARDS|FAMILY DETAILS|Oila paketingiz/);
+ const desktop=runInNewContext(personalOverview+';personalOverview();',{...context,mobileViewport:()=>false});
+ assert.match(desktop,/REQUEST CARDS/);
+ assert.match(desktop,/FAMILY DETAILS/);
 });
 
 test('anonymous tasks and public pages retain public mobile navigation',()=>{

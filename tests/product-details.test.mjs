@@ -56,6 +56,20 @@ test('verified contact fields omit unknown values and allow safe map search link
 });
 
 const source=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+const familyCards=source.slice(source.indexOf('function familyCards()'),source.indexOf('\nfunction landing()'));
+test('mobile tariff cards keep the first benefits visible and expand the rest without hiding plan actions',()=>{
+ const render=mobileViewport=>runInNewContext(familyCards+';familyCards();',{
+  packageTiers,pageLabel:lat=>lat,icon:()=>'',mobileViewport:()=>mobileViewport
+ });
+ const mobile=render(true);
+ assert.equal((mobile.match(/<details class="package-more">/g)||[]).length,3);
+ assert.match(mobile,/Yana 4 ta xizmat/);
+ assert.match(mobile,/Yana 5 ta xizmat/);
+ assert.match(mobile,/Yana 9 ta xizmat/);
+ assert.equal((mobile.match(/data-action="buy-package"/g)||[]).length,3);
+ const desktop=render(false);
+ assert.equal((desktop.match(/<details class="package-more" open>/g)||[]).length,3);
+});
 const tracking=source.slice(source.indexOf('function trackingDialog('),source.indexOf('\nfunction registrationVerification('));
 test('customer tracking offers owned cases while guests and staff keep the secret-key flow',()=>{
  for(const role of [null,'client','operator','partner','director']){
