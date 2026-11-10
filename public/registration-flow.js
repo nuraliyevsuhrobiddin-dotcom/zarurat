@@ -40,7 +40,7 @@ export function createRegistrationFlow({api,normalizePhone,label,escape:esc,stor
   if(!form)return;active=form;const button=form.querySelector('[type="submit"]');button.disabled=true;
   try{
    const auth=await api('/auth/options');if(!form.isConnected)return;
-   if(!auth.registrationTelegramRequired){button.disabled=false;return;}
+   if(!auth.registrationTelegramRequired){clear();button.disabled=false;return;}
    form.dataset.telegramRequired='true';
    const intro=document.createElement('div');intro.className='registration-intro notice';intro.innerHTML=`<strong>${label('1. Telefonni tasdiqlash → 2. Ism va parol','1. Телефонни тасдиқлаш → 2. Исм ва парол')}</strong><p>${label('Telegramdagi o‘z telefon raqamingizni kiriting. Tasdiqdan keyin kabinet yaratasiz.','Telegramдаги ўз телефон рақамингизни киритинг. Тасдиқдан кейин кабинет яратасиз.')}</p><a href="#request">${label('Faqat murojaat yuborish — hisob shart emas','Фақат мурожаат юбориш — ҳисоб шарт эмас')}</a>`;
    if(!form.querySelector('.registration-intro'))form.querySelector('.form-error').after(intro);

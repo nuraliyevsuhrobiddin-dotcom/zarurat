@@ -5,7 +5,9 @@ import {phone,text,fail} from './validation.mjs';
 import {telegramReady,telegram} from './providers.mjs';
 import {normalizePhone} from '../public/auth-input.js';
 
-export const registrationTelegramRequired=env=>env.FEATURE_TELEGRAM_REGISTRATION==='true';
+// Kept for backwards-compatible API responses. Account creation no longer
+// depends on Telegram; the legacy environment flag is intentionally ignored.
+export const registrationTelegramRequired=()=>false;
 export async function telegramRegistrationStatus({body,req,db,env}){
  if(!registrationTelegramRequired(env)||!telegramReady(env))throw new HttpError(503,'Telegram orqali ro‘yxatdan o‘tish hali ulanmagan.');
  const challenge=text(body.challenge,'Tasdiqlash havolasi',48,48),mobile=phone(body.phone);

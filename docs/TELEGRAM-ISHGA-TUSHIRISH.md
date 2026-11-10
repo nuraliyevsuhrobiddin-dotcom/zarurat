@@ -2,32 +2,9 @@
 
 SMS provayder talab qilinmaydi. Bot mavjud Vercel Function orqali ishlaydi.
 
-## Ro‘yxatdan o‘tishda raqamni tasdiqlash
+## Ro'yxatdan o'tish
 
-`migrations/007_telegram_registration.sql` va
-`FEATURE_TELEGRAM_REGISTRATION=true` yangi mijozlar uchun majburiy tasdiqlashni
-yoqadi. `FEATURE_TELEGRAM=true` ham kerak. Mavjud hisoblar o‘zgartirilmaydi.
-
-Ro‘yxatdan o‘tish formasida ism, telefon, parol va rozilik kiritilgach,
-Telegramda tasdiqlash havolasi chiqadi. Foydalanuvchi botda Start, so‘ng
-«Telefon raqamimni ulashish» tugmasini bosadi. Saytga qaytib «Kabinet yaratish»
-tugmasini yana bosadi. Hisob shundan keyingina yaratiladi.
-
-Webhook faqat shaxsiy chatdagi yuboruvchining o‘z kontaktini qabul qiladi:
-kontakt user_id, yuboruvchi IDsi va chat IDsi teng bo‘lishi, telefon esa formadagi
-raqamga mos kelishi kerak. Forward qilingan kontaktlar qabul qilinmaydi.
-Oddiy Start yoki telefon raqamini matn qilib yuborish tasdiqlash emas.
-
-Havola 15 daqiqa amal qiladi va bir marta ishlaydi. Serverda havolaning faqat
-xeshi saqlanadi. Parol tasdiqlash boshlanishida bazaga saqlanmaydi. Hisobni
-yaratish va tasdiqlashni ishlatilgan deb belgilash bitta SQL tranzaksiyasida
-bajariladi. Rol doim client; telefon tasdiqlangan, Telegram esa bog‘langan
-bo‘ladi. `/stop` pending tasdiqlashni bekor qiladi. Bog‘langan bitta Telegram
-orqali ikkinchi hisob ochilmaydi.
-
-Telegramdagi raqami saytga kiritgan raqamidan farqli yoki Telegram hisobisiz
-foydalanuvchi bu usulda ro‘yxatdan o‘ta olmaydi. Bunday foydalanuvchilar uchun
-kelajakda alohida SMS tasdiqlash usuli kerak bo‘ladi.
+Yangi hisob yaratishda Telegram bot orqali telefon tasdig'i talab qilinmaydi. Ism, telefon, parol va rozilik bilan saytda bevosita ro'yxatdan o'tish mumkin. FEATURE_TELEGRAM_REGISTRATION eski sozlama bo'lib, endi hisob yaratish oqimiga ta'sir qilmaydi. Telegram hisob sozlamalaridan keyinroq ulanadi; parolni tiklash uchun alohida ishlatiladi.
 
 ## Parolni tiklashni sozlash
 

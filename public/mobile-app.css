@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    ZARURIYAT — Mobil prezentatsiya qatlami (mobile-app.css)
    ============================================================ */
 
@@ -791,9 +791,10 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  #app[data-page=home] .center-phone svg,#app[data-page=home] .center-address svg { width:15px; height:15px; }
  .home-shortcut-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; border:0; border-radius:0; background:transparent; box-shadow:none; overflow:visible; }
  .home-shortcut-grid > a { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; padding:16px 14px; min-height:140px; gap:12px; border:1px solid #dce5f0!important; border-radius:15px; background:#fff; }
- .home-shortcut-grid > a > svg:first-child { width:24px; height:24px; color:#1758ca; }
+ .home-shortcut-grid > a > .shortcut-icon { display:grid; place-items:center; flex:0 0 38px; width:38px; height:38px; border-radius:50%; background:#eaf1fd; color:#1758ca; }
+ .home-shortcut-grid > a > .shortcut-icon svg { display:block; flex:0 0 20px; width:20px; height:20px; color:#1758ca; stroke:#1758ca; }
  .home-shortcut-grid > a > svg:last-child { display:none; }
- .home-shortcut-grid > a > span { width:100%; flex:0; font-size:14px; line-height:1.4; font-weight:650; overflow-wrap:normal; }
+ .home-shortcut-grid > a > span:not(.shortcut-icon) { width:100%; flex:0; font-size:14px; line-height:1.4; font-weight:650; overflow-wrap:normal; }
  .home-shortcut-grid small { margin-top:5px; font-size:11px; line-height:1.5; }
  .mobile-bottom-bar { background:#fff!important; border-top:1px solid #dce5f0!important; box-shadow:0 -3px 18px rgba(7,27,59,.035)!important; gap:0!important; height:auto; min-height:calc(70px + env(safe-area-inset-bottom)); padding:6px 7px calc(7px + env(safe-area-inset-bottom)); }
  .mobile-bottom-bar .mb-item { flex:1; width:auto; min-width:0; min-height:54px; gap:4px; padding:5px 2px; color:#52647b; border-radius:10px; background:transparent; font-size:10px; line-height:1.4; font-weight:600; }
@@ -878,12 +879,12 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  .mobile-menu-group .app-menu-list .app-menu-row,
  .home-shortcut-grid>a { min-width:0; min-height:104px; padding:12px 8px 10px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; border:1px solid #e2e8f0; border-radius:14px; background:#fff; text-align:center; box-shadow:0 1px 3px rgba(21,46,74,.04); }
  .mobile-menu-group .app-menu-list .menu-row-icon,
- .home-shortcut-grid>a>svg:first-child { flex:0 0 42px; width:42px; height:42px; padding:11px; box-sizing:border-box; margin:0; border-radius:50%; background:#eaf1fd; color:#1758ca; }
- .mobile-menu-group .app-menu-list .menu-row-icon svg,
- .home-shortcut-grid>a>svg:first-child { width:20px; height:20px; }
+ .home-shortcut-grid>a>.shortcut-icon { flex:0 0 42px; width:42px; height:42px; padding:0; box-sizing:border-box; margin:0; border-radius:50%; background:#eaf1fd; color:#1758ca; display:grid; place-items:center; }
+ .mobile-menu-group .app-menu-list .menu-row-icon svg { width:20px; height:20px; }
+ .home-shortcut-grid>a>.shortcut-icon svg { display:block; flex:0 0 20px; width:20px; height:20px; color:#1758ca; stroke:#1758ca; }
  .mobile-menu-group .menu-row-copy { flex:0 1 auto; width:100%; }
  .mobile-menu-group .menu-row-copy b,
- .home-shortcut-grid>a>span { display:block; font-size:12px; line-height:1.35; font-weight:650; color:#17263b; overflow-wrap:anywhere; }
+ .home-shortcut-grid>a>span:not(.shortcut-icon) { display:block; font-size:12px; line-height:1.35; font-weight:650; color:#17263b; overflow-wrap:anywhere; }
  .mobile-menu-group .menu-row-copy small,
  .home-shortcut-grid>a>span small { display:none; }
  .mobile-menu-group .app-menu-row>svg,
@@ -1030,3 +1031,41 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  .mobile-bottom-bar .mb-item[href="#login"] { color: #52647b; }
  .mobile-bottom-bar .mb-item[href="#login"]:active { background-color: #edf2f8; border-radius: 10px; }
 }
+
+/* Oilaviy tarif va to‘lov oynalari: bir qarashda narx, limit va keyingi qadam */
+.cabinet-family-plans { margin: 22px 0 28px; }
+.cabinet-family-plans > h2 { margin: 0 0 5px; color: #071b3b; font-size: 20px; line-height: 1.35; }
+.cabinet-family-plans > p { margin: 0 0 14px; color: #52647b; font-size: 14px; line-height: 1.55; }
+.cabinet-family-plans .package-card { display: flex; flex-direction: column; min-width: 0; }
+.cabinet-family-plans .package-card .package-services { margin-bottom: 14px; }
+.cabinet-family-plans .package-card [data-action="buy-package"] { display: flex; justify-content: center; align-items: center; gap: 7px; min-height: 46px; margin-top: auto; padding: 10px 14px; border: 1px solid #1758ca; border-radius: 11px; background: #1758ca; color: #fff; text-decoration: none; font-size: 14px; font-weight: 650; }
+.cabinet-family-plans .package-card [data-action="buy-package"]:focus-visible { outline: 3px solid #8eb4ff; outline-offset: 2px; }
+.checkout-member-help { margin: 18px 0 7px; color: #334155; font-size: 14px; line-height: 1.6; }
+.checkout-member-help + .field textarea { min-height: 92px; }
+.payment-section > .payment-history { display: grid; gap: 10px; }
+.payment-row > div:last-child { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.payment-row small { overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+ .cabinet-family-plans { margin: 20px 0 25px; }
+ .cabinet-family-plans > h2 { font-size: 19px; }
+ .cabinet-family-plans .package-cards { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+ .cabinet-family-plans .package-card { padding: 16px 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 1px 4px rgba(21,46,74,.04); }
+ .cabinet-family-plans .package-card h3 { font-size: 20px; margin: 5px 0; }
+ .cabinet-family-plans .package-card h4 { margin: 0 0 6px; font-size: 14px; line-height: 1.45; }
+ .cabinet-family-plans .package-card > p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; }
+ .cabinet-family-plans .package-card .package-price { margin: 8px 0; }
+ .cabinet-family-plans .package-card .package-price strong { font-size: 25px; }
+ .cabinet-family-plans .package-card .package-members { font-size: 13px; }
+ .cabinet-family-plans .package-card .package-line { margin: 10px 0; }
+ .cabinet-family-plans .package-card .package-services { gap: 7px; margin-top: 8px; }
+ .cabinet-family-plans .package-card .package-services li { gap: 8px; font-size: 13px; line-height: 1.45; }
+ .cabinet-family-plans .package-card .package-services b { text-align: right; }
+ .cabinet-family-plans .package-card .package-more summary { min-height: 40px; display: flex; align-items: center; }
+ .checkout-member-help + .field textarea { min-height: 82px; }
+ .payment-history { display: grid; gap: 9px; }
+ .payment-row { min-width: 0; }
+ .payment-row > div:first-child { min-width: 0; }
+ .payment-row > div:last-child { align-items: flex-start; }
+}
+.payment-history-title { margin: 18px 0 2px; color: #17263b; font-size: 16px; line-height: 1.4; }
+.cabinet-family-plans .package-card [data-action="buy-package"]:disabled { border-color: #cbd5e1; background: #e9edf3; color: #52647b; cursor: not-allowed; box-shadow: none; }

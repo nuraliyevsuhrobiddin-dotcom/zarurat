@@ -29,7 +29,7 @@ Tekshirish: `npm test` ' Node API va PostgreSQL/PGlite integratsion testlar.
 
 Google uchun ochiq xizmat sahifalari, sitemap va aloqa ma’lumotlarini qayta yaratish:
 `npm run build:search`. Chiqarishdan oldin `npm test` va `npm run check:ready` bajariladi.
-Telegram ro‘yxatdan o‘tishni haqiqiy botga xabar yubormasdan sinash:
+Local account-registration QA server:
 `node scripts/qa-registration.mjs`.
 
 `.env*`, `artifacts/`, `.cache/`, `.vercel/`, mahalliy baza va `node_modules/`
