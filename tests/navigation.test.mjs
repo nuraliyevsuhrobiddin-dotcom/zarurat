@@ -62,7 +62,8 @@ test('anonymous tasks and public pages retain public mobile navigation',()=>{
    });
    assert.match(html,/data-context="public"/,hash);
    assert.match(html,/href="#services"/);
-   assert.match(html,/href="#menu"/);
+   assert.doesNotMatch(html,/href="#menu"/);
+   assert.equal((html.match(/class="mb-item/g)||[]).length,5,hash);
   }
  }
 });

@@ -104,12 +104,12 @@ test('rendered checkout includes consent-facing quota summary for each real tier
  }
 });
 
-const selectionClick=source.slice(source.indexOf(' const selected=e.target.closest'),source.indexOf(" if(e.target.closest('.skip-link'))"));
+const selectionClick=source.slice(source.indexOf(' const selected=target.closest'),source.indexOf(" if(target.closest('.skip-link'))"));
 test('choosing a concrete service after explicit change retains package context and clears unknown-service mode',()=>{
  for(const [category,expectedSpecial] of [['repair',false],['other',true]]){
   const selection=createServiceSelection();selection.begin('guest',{name:'QA Customer',phone:'+998901111113',description:'QA request',consent:true},{packageName:'COMFORT',special:true});
   const location={hash:''};let prevented=false;
-  runInNewContext('(function(){'+selectionClick+'})();',{
+  runInNewContext('(function(){const target=e.target;'+selectionClick+'})();',{
    e:{target:{closest:()=>({dataset:{category}})},preventDefault(){prevented=true;}},
    serviceSelection:selection,requestOwner:()=> 'guest',URLSearchParams,location
   });
@@ -119,7 +119,7 @@ test('choosing a concrete service after explicit change retains package context 
  }
  const selection=createServiceSelection();selection.begin('user:3',{name:'Private previous account'});
  const location={hash:''};
- runInNewContext('(function(){'+selectionClick+'})();',{
+ runInNewContext('(function(){const target=e.target;'+selectionClick+'})();',{
   e:{target:{closest:()=>({dataset:{category:'repair'}})},preventDefault(){assert.fail('Old account selection must not intercept a normal category click');}},
   serviceSelection:selection,requestOwner:()=> 'user:4',URLSearchParams,location
  });

@@ -796,7 +796,7 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
  .home-shortcut-grid > a > svg:last-child { display:none; }
  .home-shortcut-grid > a > span:not(.shortcut-icon) { width:100%; flex:0; font-size:14px; line-height:1.4; font-weight:650; overflow-wrap:normal; }
  .home-shortcut-grid small { margin-top:5px; font-size:11px; line-height:1.5; }
- .mobile-bottom-bar { background:#fff!important; border-top:1px solid #dce5f0!important; box-shadow:0 -3px 18px rgba(7,27,59,.035)!important; gap:0!important; height:auto; min-height:calc(70px + env(safe-area-inset-bottom)); padding:6px 7px calc(7px + env(safe-area-inset-bottom)); }
+ .mobile-bottom-bar { box-sizing:border-box; background:#fff!important; border-top:1px solid #dce5f0!important; box-shadow:0 -3px 18px rgba(7,27,59,.035)!important; gap:0!important; height:auto; min-height:calc(70px + env(safe-area-inset-bottom)); padding:6px 7px calc(7px + env(safe-area-inset-bottom)); }
  .mobile-bottom-bar .mb-item { flex:1; width:auto; min-width:0; min-height:54px; gap:4px; padding:5px 2px; color:#52647b; border-radius:10px; background:transparent; font-size:10px; line-height:1.4; font-weight:600; }
  .mobile-bottom-bar .mb-item > svg { width:22px; height:22px; }
  .mobile-bottom-bar .mb-item > span:last-child { font-size:10px; line-height:1.4; white-space:normal; }
