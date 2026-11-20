@@ -294,10 +294,10 @@ DECLARE s services; c cases; actor users; BEGIN
   -- Always lock the parent before the service, consistent with case completion.
   SELECT * INTO c FROM cases WHERE id=s.case_id FOR UPDATE;
   SELECT * INTO s FROM services WHERE id=p_id FOR UPDATE;
-  IF actor.id IS NULL OR actor.role NOT IN ('operator','director','partner') THEN RAISE EXCEPTION 'Ruxsat yo‘q.'; END IF;
+  IF actor.id IS NULL OR actor.role NOT IN ('operator','director','partner') OR to_jsonb(actor)->>'blocked_at' IS NOT NULL THEN RAISE EXCEPTION 'Ruxsat yo‘q.'; END IF;
   IF c.status IN ('completed','cancelled') OR s.status IN ('completed','cancelled') THEN RAISE EXCEPTION 'Yakunlangan xizmat o‘zgartirilmaydi.'; END IF;
   IF actor.role='partner' THEN
-    IF actor.partner_id IS DISTINCT FROM s.partner_id OR p_change_partner THEN RAISE EXCEPTION 'Ruxsat yo‘q.'; END IF;
+    IF actor.partner_id IS NULL OR s.partner_id IS NULL OR actor.partner_id IS DISTINCT FROM s.partner_id OR p_change_partner THEN RAISE EXCEPTION 'Ruxsat yo‘q.'; END IF;
     IF p_status IS DISTINCT FROM (CASE s.status WHEN 'pending' THEN 'accepted' WHEN 'accepted' THEN 'contacted' WHEN 'contacted' THEN 'delivered' WHEN 'delivered' THEN 'completed' END) THEN RAISE EXCEPTION 'Keyingi bosqichni tanlang.'; END IF;
   END IF;
   IF p_change_partner AND p_partner_id IS DISTINCT FROM s.partner_id THEN
@@ -561,3 +561,70 @@ REVOKE ALL ON FUNCTION public.zar_use_subscription(BIGINT,BIGINT,TEXT,BIGINT) FR
 GRANT EXECUTE ON FUNCTION public.zar_use_subscription(BIGINT,BIGINT,TEXT,BIGINT) TO service_role;
 NOTIFY pgrst,'reload schema';
 COMMIT;
+
+-- Single benefit accounting (migration 012).
+-- Apply after 004. Preserve existing usage and reject future double deductions.
+BEGIN;
+CREATE OR REPLACE FUNCTION public.zar_single_benefit()
+RETURNS trigger LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
+BEGIN
+ PERFORM 1 FROM cases WHERE id=NEW.case_id FOR UPDATE;
+ IF TG_TABLE_NAME='package_usage' THEN
+  IF EXISTS(SELECT 1 FROM subscription_usage WHERE case_id=NEW.case_id) THEN
+   RAISE EXCEPTION 'Bu murojaat allaqachon obunadan hisoblangan.';
+  END IF;
+ ELSE
+  IF EXISTS(SELECT 1 FROM package_usage WHERE case_id=NEW.case_id) THEN
+   RAISE EXCEPTION 'Bu murojaat allaqachon qo‘lda berilgan paketdan hisoblangan.';
+  END IF;
+ END IF;
+ RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS zar_single_benefit ON public.package_usage;
+CREATE TRIGGER zar_single_benefit BEFORE INSERT OR UPDATE OF case_id ON public.package_usage
+ FOR EACH ROW EXECUTE FUNCTION public.zar_single_benefit();
+DROP TRIGGER IF EXISTS zar_single_benefit ON public.subscription_usage;
+CREATE TRIGGER zar_single_benefit BEFORE INSERT OR UPDATE OF case_id ON public.subscription_usage
+ FOR EACH ROW EXECUTE FUNCTION public.zar_single_benefit();
+REVOKE ALL ON FUNCTION public.zar_single_benefit() FROM PUBLIC,anon,authenticated;
+CREATE OR REPLACE FUNCTION public.zar_benefit_ready()
+RETURNS boolean LANGUAGE sql STABLE SET search_path=public,pg_temp AS $$
+ SELECT count(*)=2 FROM pg_trigger WHERE tgname='zar_single_benefit'
+ AND tgrelid IN ('public.package_usage'::regclass,'public.subscription_usage'::regclass) AND tgenabled='O';
+$$;
+REVOKE ALL ON FUNCTION public.zar_benefit_ready() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.zar_benefit_ready() TO service_role;
+NOTIFY pgrst,'reload schema';
+COMMIT;
+
+CREATE OR REPLACE FUNCTION public.zar_submit_request(p_input JSONB,p_user_id BIGINT,p_actor_id BIGINT DEFAULT NULL)
+RETURNS JSONB LANGUAGE plpgsql SET search_path=public,extensions,pg_temp AS $$
+DECLARE mobile TEXT:=regexp_replace(coalesce(p_input->>'phone',''),'[^0-9]','','g'); u users; allowed BOOLEAN:=false;
+BEGIN
+ IF length(mobile)=9 THEN mobile:='998'||mobile; END IF;
+ IF mobile !~ '^998[0-9]{9}$' THEN RAISE EXCEPTION 'Telefon raqami noto‘g‘ri.'; END IF;
+ IF p_actor_id IS NOT NULL THEN
+  SELECT * INTO u FROM users WHERE id=p_actor_id AND role IN ('operator','director') AND to_jsonb(users)->>'blocked_at' IS NULL;
+  IF u.id IS NULL THEN RAISE EXCEPTION 'Ruxsat yo‘q.'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('request:'||mobile,0));
+  RETURN zar_create_request(p_input,p_user_id);
+ END IF;
+ IF p_user_id IS NOT NULL THEN
+  SELECT * INTO u FROM users WHERE id=p_user_id AND role='client' AND to_jsonb(users)->>'blocked_at' IS NULL FOR UPDATE;
+  IF u.id IS NULL THEN RAISE EXCEPTION 'Mijoz hisobi topilmadi.'; END IF;
+  -- A subscriber may request help for family members through their own account.
+  SELECT EXISTS(SELECT 1 FROM family_subscriptions WHERE client_id=u.id AND mode='live' AND status='active' AND starts_at<=now() AND expires_at>now())
+    OR EXISTS(SELECT 1 FROM packages p WHERE p.client_id=u.id AND p.expires_at>now() AND p.service_limit>(SELECT count(*) FROM package_usage pu WHERE pu.package_id=p.id)) INTO allowed;
+ END IF;
+ -- Account before phone matches Telegram/Payme lock order and prevents a refund race.
+ PERFORM pg_advisory_xact_lock(hashtextextended('request:'||mobile,0));
+ IF NOT allowed AND EXISTS(SELECT 1 FROM cases WHERE
+  CASE WHEN length(regexp_replace(phone,'[^0-9]','','g'))=9 THEN '998'||regexp_replace(phone,'[^0-9]','','g') ELSE regexp_replace(phone,'[^0-9]','','g') END=mobile)
+ THEN RETURN jsonb_build_object('subscriptionRequired',true); END IF;
+ RETURN zar_create_request(p_input,p_user_id);
+END $$;
+REVOKE ALL ON FUNCTION public.zar_submit_request(JSONB,BIGINT,BIGINT) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.zar_submit_request(JSONB,BIGINT,BIGINT) TO service_role;
+CREATE INDEX IF NOT EXISTS cases_request_phone_access ON public.cases
+ ((CASE WHEN length(regexp_replace(phone,'[^0-9]','','g'))=9 THEN '998'||regexp_replace(phone,'[^0-9]','','g') ELSE regexp_replace(phone,'[^0-9]','','g') END));
+NOTIFY pgrst,'reload schema';

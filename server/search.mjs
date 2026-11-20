@@ -6,10 +6,15 @@ export function caseFilters(url,user,now=new Date()) {
   const filters={select:'*,coordinator:users!cases_coordinator_id_fkey(name,role),services(*,partners(name))',order:'id.desc',limit:51,offset:integer(params.get('offset')||0,'Sahifa',0)};
   if(user.role==='client')filters.client_id=`eq.${user.id}`;
   if(['director','operator'].includes(user.role)&&params.has('clientId'))filters.client_id=`eq.${integer(params.get('clientId'),'Mijoz')}`;
+  if(['director','operator'].includes(user.role)&&params.get('assignee')){
+    const assignee=choice(params.get('assignee'),['me','unassigned'],'Mas’ul xodim');
+    filters.coordinator_id=assignee==='me'?`eq.${user.id}`:'is.null';
+  }
   if(user.role==='partner'){
     // Filtering the inner relation restricts both the parent cases and services.
     filters.select=filters.select.replace('services(*','services!inner(*');
     filters['services.partner_id']=`eq.${user.partner_id||0}`;
+    if(params.get('serviceStatus'))filters['services.status']=`eq.${choice(params.get('serviceStatus'),['pending','accepted','contacted','delivered','completed','cancelled'],'Xizmat holati')}`;
   }
   const status=params.get('status');
   const category=params.get('category');

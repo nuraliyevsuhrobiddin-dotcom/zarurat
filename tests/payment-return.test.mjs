@@ -47,6 +47,21 @@ test('only a client receives checkout links for fresh pending orders in the acti
 });
 
 const appSource=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+test('a delayed checkout response cannot redirect over a newer page',async()=>{
+ const start=appSource.indexOf("if(form.id==='checkout-form')");
+ const branch=appSource.slice(start,appSource.indexOf("\n  else if(form.id==='subscription-use-form')",start));
+ for(const [connected,version] of [[true,1],[false,1],[true,2]]){
+  let redirects=0,orders=0;
+  await runInNewContext(`(async()=>{${branch}})()`,{
+   form:{id:'checkout-form',dataset:{tier:'STANDARD'},isConnected:connected},
+   data:{members:'QA Client',consent:'on'},version:1,routeVersion:version,
+   api:async()=>{orders++;return {checkoutUrl:'https://checkout.paycom.uz/qa'};},
+   location:{assign(){redirects++;}}
+  });
+  assert.equal(orders,1,'The order must still be saved');
+  assert.equal(redirects,connected&&version===1?1:0);
+ }
+});
 const watcher=appSource.slice(appSource.indexOf('function watchPaymentReturn('),appSource.indexOf('\nlet subscriptionEligibility'));
 function pollingContext(api){
  const queue=[],main={innerHTML:''};

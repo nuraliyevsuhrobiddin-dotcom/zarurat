@@ -1,5 +1,18 @@
 # ZARURIYAT — Payme sozlash
 
+Payme Merchant API endpointi: `https://www.zaruriyat.uz/api/payme`.
+Kassada aynan shu HTTPS manzilni belgilang. Domenni boshqa manzilga
+yo‘naltirish (307/308 redirect) webhook uchun ishlatilmasin: Payme autentifikatsiyasi
+va JSON-RPC javobi to‘g‘ridan-to‘g‘ri endpointga yetishi kerak. Eski domenlar
+uchun `vercel.json` faqat `/api/payme` yo‘lini canonical redirectdan chiqaradi;
+bu qoida ishlashi uchun Vercel Domains bo‘limidagi butun domen redirecti
+olib tashlanadi. Ochiq sahifalarning canonical redirecti `vercel.json`da saqlanadi.
+
+`check:payme` serverning tayyorligini tekshiradi. Bu tekshiruv o‘tishi Payme
+kassasidagi endpoint, `order_id` matn maydoni va ishchi kalit ham mosligini
+tasdiqlamaydi. Checkoutda xato qolsa, Payme Business kassasi sozlamalari va
+amaldagi buyurtma bilan checkout alohida tekshiriladi; karta to‘lovi talab qilinmaydi.
+
 Jonli endpointni to‘lov yaratmasdan tekshirish: `npm run check:payme`.
 U sukut bo‘yicha `https://www.zaruriyat.uz` manzilini, ishchi kalit qabul
 qilinishini va test kaliti rad etilishini tekshiradi. Boshqa domen uchun

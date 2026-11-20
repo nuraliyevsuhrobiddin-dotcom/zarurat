@@ -30,6 +30,20 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/:path((?!api/payme(?:/|$)).*)",
+      "has": [{"type": "host", "value": "zarurat-inky.vercel.app"}],
+      "destination": "https://www.zaruriyat.uz/:path",
+      "permanent": false
+    },
+    {
+      "source": "/:path((?!api/payme(?:/|$)).*)",
+      "has": [{"type": "host", "value": "zaruriyat.uz"}],
+      "destination": "https://www.zaruriyat.uz/:path",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",

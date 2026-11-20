@@ -40,13 +40,37 @@ test('a guest can submit a request without registering',async()=>{
  let input;
  const db=async(resource,options)=>{
   if(resource==='rpc/zar_rate_limit')return true;
-  if(resource==='rpc/zar_create_request'){input=options.body;return {number:'ZAR-123456',token:'guest-tracking-token'};}
+  if(resource==='rpc/zar_submit_request'){input=options.body;return {number:'ZAR-123456',token:'guest-tracking-token'};}
   return [];
  };
  const result=await request('/requests',{method:'POST',headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json'},body:{name:'Guest client',phone:'+998901234567',region:"Toshkent shahri",category:'other',description:'Oilaviy masala haqida maslahat kerak.',consent:true},db});
  assert.equal(result.statusCode,200);
  assert.equal(input.p_user_id,null);
  assert.equal(result.data.number,'ZAR-123456');
+});
+
+test('request owner check blocks changed cookies before any submission or rate limit mutation',async()=>{
+ const value='a'.repeat(64),cookie=`zar_session=${value}.${sessionSignature(value,7,testHash,env)}`;
+ let submissions=0,limits=0;
+ const db=async(resource,options)=>{
+  if(resource==='sessions')return [{user_id:7}];
+  if(resource==='users')return [{id:7,role:'client',password_hash:testHash}];
+  if(resource==='rpc/zar_rate_limit'){limits++;return true;}
+  if(resource==='rpc/zar_submit_request'){submissions++;return {case:{id:1},trackingToken:'fixture'};}
+  return [];
+ };
+ const body={name:'Family member',phone:'+998901234567',region:'Qashqadaryo',category:'other',description:'Family member needs help',consent:true};
+ for(const owner of ['guest','user:8',null]){
+  const res=await request('/requests',{method:'POST',body:{...body,requestOwner:owner},headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json',cookie},db});
+  assert.equal(res.statusCode,409);assert.equal(res.data.code,'account_changed');
+ }
+ const loggedOut=await request('/requests',{method:'POST',body:{...body,requestOwner:'user:7'},headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json'},db});
+ assert.equal(loggedOut.statusCode,409);assert.equal(submissions,0);assert.equal(limits,0);
+ for(const [owner,session] of [['user:7',cookie],['guest',undefined]]){
+  const res=await request('/requests',{method:'POST',body:{...body,requestOwner:owner},headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json',...(session?{cookie:session}:{})},db});
+  assert.equal(res.statusCode,200);
+ }
+ assert.equal(submissions,2);
 });
 test('Vercel rewritten route resolves the same session endpoint',async()=>{
  const res=await request('/index?route=auth/me');

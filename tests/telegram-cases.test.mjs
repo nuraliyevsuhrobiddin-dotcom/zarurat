@@ -11,7 +11,7 @@ const env={FEATURE_TELEGRAM:'true',FEATURE_TELEGRAM_CASES:'true',TELEGRAM_BOT_TO
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});
  await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
- for(const f of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/008_telegram_contact_recovery.sql','migrations/009_telegram_recovery_retries.sql','migrations/010_telegram_cases.sql'])await pg.exec(await readFile(f,'utf8'));
+ for(const f of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/008_telegram_contact_recovery.sql','migrations/009_telegram_recovery_retries.sql','migrations/010_telegram_cases.sql','migrations/014_request_subscription_access.sql','migrations/015_telegram_request_access.sql'])await pg.exec(await readFile(f,'utf8'));
  await pg.exec(`INSERT INTO users(login,name,phone,password_hash,role,telegram_chat_id) VALUES
  ('bot-client','Bot client','+998901111111','test','client',111),
  ('other-client','Other client','+998902222222','test','client',222),
@@ -50,6 +50,16 @@ test('tracking never exposes another client, staff, blocked accounts, internal n
  await pg.exec('UPDATE users SET blocked_at=now() WHERE id=1');
  assert.equal((await action('list')).state,'unlinked');
  await pg.exec('UPDATE users SET blocked_at=NULL WHERE id=1');
+});
+
+test('second Telegram request requires a subscription and preserves its draft until activated',async()=>{
+ await action('new');await action('category','legal');await action('text','Ikkinchi murojaat uchun huquqiy yordam kerak.');
+ assert.equal((await action('submit')).state,'subscription_required');
+ assert.equal((await pg.query('SELECT count(*) AS n FROM cases')).rows[0].n,1);
+ const draft=(await pg.query('SELECT stage,description FROM telegram_case_drafts WHERE chat_id=111')).rows[0];
+ assert.equal(draft.stage,'confirm');assert.ok(draft.description);
+ await pg.exec("SELECT zar_save_package(1,'Start',now()+interval '1 month',5,'[\"Bot client\"]')");
+ assert.equal((await action('submit')).state,'created');
 });
 
 test('draft cancellation, expiry, unlinking and out-of-order updates cannot submit a stale request',async()=>{

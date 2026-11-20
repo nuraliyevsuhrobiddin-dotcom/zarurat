@@ -19,6 +19,7 @@ let originValid=false;
 try{const origin=new URL(env.PUBLIC_ORIGIN);originValid=['http:','https:'].includes(origin.protocol)&&origin.origin===env.PUBLIC_ORIGIN;}catch{}
 add('PUBLIC_ORIGIN',originValid,'Exact site origin required.');
 add('Server database credentials',Boolean(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY));
+add('Dedicated session key',Boolean(env.SESSION_SECRET&&env.SESSION_SECRET.length>=32),'Set SESSION_SECRET to a separate random secret of at least 32 characters.');
 if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
  const db=createDatabase(env);
  for(const [rpc,name] of [['zar_stats','Database connection'],['zar_capabilities','Migration 003: intake clarification'],['zar_client_counts','Migration 003: complete client counts']]){
@@ -29,6 +30,8 @@ if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
   add('Payme environment',paymeReady(env),'Set merchant ID, active-mode key, account field and exact PUBLIC_ORIGIN.');
   try{add('Migration 004: Payme',await db('rpc/zar_payment_ready',{method:'POST',body:{}})===true,'Apply migrations/004_payme.sql in Supabase SQL Editor.');}
   catch{add('Migration 004: Payme',false,'Apply migrations/004_payme.sql in Supabase SQL Editor.');}
+  try{add('Migration 012: single benefit',await db('rpc/zar_benefit_ready',{method:'POST',body:{}})===true,'Apply migrations/012_single_benefit.sql.');}
+  catch{add('Migration 012: single benefit',false,'Apply migrations/012_single_benefit.sql.');}
  }
  try{add('Migration 011: active coordinator assignment',await db('rpc/zar_assignment_ready',{method:'POST',body:{}})===true,'Apply migrations/011_active_coordinator_assignment.sql after existing migrations.');}
  catch{add('Migration 011: active coordinator assignment',false,'Apply migrations/011_active_coordinator_assignment.sql after existing migrations.');}

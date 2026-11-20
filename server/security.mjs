@@ -37,7 +37,15 @@ export async function currentUser(req, db, env=process.env) {
   const user=users?.[0];
   if(!user||user.blocked_at)return null;
   const expected=sessionSignature(value,user.id,user.password_hash,env);
-  if(!timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(expected,'hex')))return null;
+  let valid=timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(expected,'hex'));
+  // A bounded migration window keeps existing public users signed in when the
+  // dedicated session key is enabled. New sessions always use the new key.
+  const legacyUntil=Date.parse(env.SESSION_LEGACY_UNTIL||'');
+  if(!valid&&env.SESSION_SECRET&&env.SUPABASE_SERVICE_ROLE_KEY&&Number.isFinite(legacyUntil)&&Date.now()<legacyUntil){
+    const legacy=sessionSignature(value,user.id,user.password_hash,{SUPABASE_SERVICE_ROLE_KEY:env.SUPABASE_SERVICE_ROLE_KEY});
+    valid=timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(legacy,'hex'));
+  }
+  if(!valid)return null;
   const {password_hash,...safeUser}=user;
   return {...safeUser,passwordHash:password_hash};
 }

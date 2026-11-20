@@ -3,6 +3,7 @@ import { HttpError, query } from './db.mjs';
 import { requireRole, rateLimit } from './security.mjs';
 import { text, choice, integer } from './validation.mjs';
 import { packageTiers } from '../public/package-tiers.js';
+import {requireUnusedBenefit} from './benefit-usage.mjs';
 
 export const paymeMode = env => env.PAYME_MODE === 'live' ? 'live' : 'test';
 const accountField = env => env.PAYME_ACCOUNT_FIELD || 'order_id';
@@ -68,6 +69,7 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
     requireRole(user,['operator','director']);
     const id=integer(subscriptionUse[1],'Abonement');
     if(subscriptionUse[2]==='use'&&method==='POST'){
+      await requireUnusedBenefit(db,integer(body.caseId,'Murojaat'));
       await db('rpc/zar_use_subscription',{method:'POST',body:{p_subscription_id:id,p_case_id:integer(body.caseId,'Murojaat'),p_kind:choice(body.kind,['legal','psychology','business'],'Maslahat'),p_actor_id:user.id}});
       return {ok:true};
     }
@@ -76,7 +78,7 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
       if(!subscriptions.length)throw new HttpError(404,'Abonement topilmadi.');
       const url=new URL(req.url,'http://localhost'),offset=integer(url.searchParams.get('offset')||0,'Sahifa',0,1000000);
       const cases=await db('cases',{query:query({select:'id,number,category',client_id:`eq.${subscriptions[0].client_id}`,status:'eq.completed',category:'in.(legal,documents,psychology,business)',order:'id.desc',limit:51,offset})});
-      const usage=cases.length?await db('subscription_usage',{query:query({select:'case_id',case_id:`in.(${cases.map(c=>c.id).join(',')})`})}):[];
+      const usage=cases.length?(await Promise.all(['subscription_usage','package_usage'].map(table=>db(table,{query:query({select:'case_id',case_id:`in.(${cases.map(c=>c.id).join(',')})`})})))).flat():[];
       return {cases:cases.slice(0,50).filter(c=>!usage.some(u=>u.case_id===c.id)).map(({id,number,category})=>({id,number,category})),hasMore:cases.length>50,offset:offset+50};
     }
     return undefined;
@@ -87,7 +89,10 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
     if (!ready) return {payments:[],subscriptions:[],migrationReady:false};
     const filters={select:'id,client_id,tier,amount,members,mode,status,created_at,paid_at,starts_at,expires_at',order:'created_at.desc',limit:100};
     if (user.role === 'client') filters.client_id=`eq.${user.id}`;
-    const payments=await db('payment_orders',{query:query(filters)});
+    const [payments,subscriptions]=await Promise.all([
+      db('payment_orders',{query:query(filters)}),
+      db('family_subscriptions',{query:query({select:'*',order:'created_at.desc',limit:100,...(user.role==='client'?{client_id:`eq.${user.id}`}:{})})})
+    ]);
     // Only the owner can resume a current, unpaid order. Settlement still
     // requires Payme's authenticated callback and the database checks.
     if(user.role==='client'&&paymeReady(env))for(const payment of payments){
@@ -95,7 +100,6 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
         payment.checkoutUrl=checkoutUrl(payment,env);
       }
     }
-    const subscriptions=await db('family_subscriptions',{query:query({select:'*',order:'created_at.desc',limit:100,...(user.role==='client'?{client_id:`eq.${user.id}`}:{})})});
     const usage=subscriptions.length?await db('subscription_usage',{query:query({select:'subscription_id,kind',subscription_id:`in.(${subscriptions.map(s=>s.id).join(',')})`})}):[];
     for(const s of subscriptions)s.used=Object.fromEntries(['legal','psychology','business'].map(kind=>[kind,usage.filter(u=>u.subscription_id===s.id&&u.kind===kind).length]));
     return {payments,subscriptions,migrationReady:true};

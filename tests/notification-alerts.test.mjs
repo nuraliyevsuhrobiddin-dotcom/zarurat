@@ -6,10 +6,15 @@ test('first notification read is a silent baseline and later records are detecte
  const initial=[{id:'history-3'},{id:12}];
  const baseline=notificationChanges(initial,null);
  assert.deepEqual(baseline.incoming,[]);
- const update=notificationChanges([{id:'history-4'},{id:12},{id:'history-4'}],baseline.knownIds);
- assert.deepEqual(update.incoming,[{id:'history-4'}]);
- const replay=notificationChanges([{id:'history-4'},{id:12}],update.knownIds);
+ const update=notificationChanges([{id:'request-4',source:'incoming'},{id:12},{id:'request-4',source:'incoming'}],baseline.knownIds);
+ assert.deepEqual(update.incoming,[{id:'request-4',source:'incoming'}]);
+ const replay=notificationChanges([{id:'request-4',source:'incoming'},{id:12}],update.knownIds);
  assert.deepEqual(replay.incoming,[]);
+});
+
+test('delivery and staff activity stay silent while requests and subscriptions alert',()=>{
+ const rows=[{id:'r',source:'incoming'},{id:'s',source:'internal',event:'subscription.activated'},{id:'d',source:'delivery',event:'request.created'},{id:'h',source:'internal',event:'case.assignment_changed'}];
+ assert.deepEqual(notificationChanges(rows,new Set()).incoming.map(r=>r.id),['r','s']);
 });
 
 test('notification tracker ignores malformed rows without identifiers',()=>{

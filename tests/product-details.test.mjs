@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {normalizeServiceSearch,serviceMatches,checkoutQuotaRows,createServiceSelection,verifiedContactDetails} from '../public/product-details.js';
 import {packageTiers} from '../public/package-tiers.js';
+import {tariffConditions,responseGuidance,paymentHelp,trackingHelp} from '../public/customer-guidance.js';
 
 test('service search finds task keywords in Latin and Cyrillic and treats punctuation consistently',()=>{
  assert.equal(normalizeServiceSearch('  ҚАРОВЧИ  '),'qarovchi');
@@ -59,7 +60,7 @@ const source=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const familyCards=source.slice(source.indexOf('function familyCards()'),source.indexOf('\nfunction landing()'));
 test('mobile tariff cards keep the first benefits visible and expand the rest without hiding plan actions',()=>{
  const render=mobileViewport=>runInNewContext(familyCards+';familyCards();',{
-  packageTiers,pageLabel:lat=>lat,icon:()=>'',mobileViewport:()=>mobileViewport
+  packageTiers,tariffConditions,state:{script:'lat'},pageLabel:lat=>lat,icon:()=>'',mobileViewport:()=>mobileViewport
  });
  const mobile=render(true);
  assert.equal((mobile.match(/<details class="package-more">/g)||[]).length,3);
@@ -75,7 +76,7 @@ test('customer tracking offers owned cases while guests and staff keep the secre
  for(const role of [null,'client','operator','partner','director']){
   let html='';
   runInNewContext(tracking+';trackingDialog();',{
-   state:{script:'lat',user:role?{role}:null},pageLabel:lat=>lat,field:()=>'',icon:()=>'',formError:'',
+   state:{script:'lat',user:role?{role}:null},trackingHelp,pageLabel:lat=>lat,field:()=>'',icon:()=>'',formError:'',
    modalOpen(title,subtitle,content){html=content;}
   });
   assert.match(html,/id="track-form"/);
@@ -89,7 +90,7 @@ test('rendered checkout includes consent-facing quota summary for each real tier
  for(const tier of packageTiers){
   for(const script of ['lat','cyr']){
    let html='';
-   const context={routeVersion:1,packageTiers,checkoutQuotaRows,state:{script,user:{role:'client',name:'QA Customer'}},
+   const context={routeVersion:1,packageTiers,checkoutQuotaRows,tariffConditions,paymentHelp,state:{script,user:{role:'client',name:'QA Customer'}},
     api:async()=>({enabled:true,mode:'test'}),paymentMoney:value=>String(value/100),pageLabel:(lat,cyr)=>script==='cyr'?cyr:lat,
     tr:value=>value,esc:value=>String(value),textareaField:()=>'',formError:'',
     modalOpen(title,subtitle,content){html=content;}};
@@ -131,9 +132,9 @@ test('request renders its selected service and consumes explicit draft transfer 
  const form={elements:{name:{value:''},phone:{value:''},description:{value:''},consent:{checked:false}}};
  const selection=createServiceSelection();selection.begin('guest',{name:'QA Customer',phone:'+998901111113',description:'Existing draft',consent:true});
  let html='',saved=0;
- runInNewContext(request+";requestDialog('repair');",{
+ runInNewContext(request+";requestDialog('repair');",{requestAccessPolicy:()=>'',
   state:{script:'lat',config:{categories:[{id:'repair',name:'Usta'}]}},requestContact:()=>({name:'',phone:'+998'}),
-  staff:()=>false,pageLabel:lat=>lat,esc:value=>String(value),category:()=> 'Usta',modal:{},$:()=>form,
+  staff:()=>false,responseGuidance,pageLabel:lat=>lat,esc:value=>String(value),category:()=> 'Usta',modal:{},$:()=>form,
   formError:'',field:()=>'',textareaField:()=>'',icon:()=>'',restoreRequestDraft(){},serviceSelection:selection,requestOwner:()=> 'guest',
   rememberRequestDraft(){saved++;},modalOpen(title,subtitle,content){html=content;}
  });

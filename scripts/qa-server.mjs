@@ -13,12 +13,21 @@ const pg=new PGlite({extensions:{pgcrypto}});
 await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
 await pg.exec(await readFile('supabase-schema.sql','utf8'));
 await pg.exec(await readFile('migrations/002_accounts_notifications.sql','utf8'));
+await pg.exec(await readFile('migrations/003_intake_clarification.sql','utf8'));
+if(process.env.QA_PAYME==='true'){
+ await pg.exec(await readFile('migrations/004_payme.sql','utf8'));
+ await pg.exec(await readFile('migrations/005_payme_sandbox_errors.sql','utf8'));
+}
 await pg.exec(await readFile('migrations/006_telegram_recovery.sql','utf8'));
 await pg.exec(await readFile('migrations/007_telegram_registration.sql','utf8'));
 await pg.exec(await readFile('migrations/008_telegram_contact_recovery.sql','utf8'));
 await pg.exec(await readFile('migrations/009_telegram_recovery_retries.sql','utf8'));
 await pg.exec(await readFile('migrations/010_telegram_cases.sql','utf8'));
 await pg.exec(await readFile('migrations/011_active_coordinator_assignment.sql','utf8'));
+if(process.env.QA_PAYME==='true')await pg.exec(await readFile('migrations/012_single_benefit.sql','utf8'));
+await pg.exec(await readFile('migrations/013_partner_service_permissions.sql','utf8'));
+await pg.exec(await readFile('migrations/014_request_subscription_access.sql','utf8'));
+await pg.exec(await readFile('migrations/015_telegram_request_access.sql','utf8'));
 await pg.exec(`
  INSERT INTO partners(name,phone,address,category,hours,region,price,contract_status)
  VALUES('QA hamkor','+998901111115','QA Qarshi','legal','09:00-18:00','Qashqadaryo',0,'active');
@@ -29,6 +38,12 @@ await pg.exec(`
  ('qa-partner','QA Hamkor','+998901111114',extensions.crypt('qa-password-2026',extensions.gen_salt('bf',4)),'partner',1);
  SELECT zar_create_request('{"name":"QA Mijoz","phone":"+998901111113","region":"Qashqadaryo","category":"legal","description":"QA oilaviy huquqiy yordam","preferred_time":"Istalgan vaqt","attachments":[]}',3);
  SELECT zar_save_package(3,'Komfort',now()+interval '1 year',5,'["QA Mijoz"]');
+`);
+if(process.env.QA_SUBSCRIPTIONS==='true'&&process.env.QA_PAYME==='true')await pg.exec(`
+ INSERT INTO payment_orders(client_id,tier,amount,members,terms,mode,status)
+ VALUES(3,'STANDARD',9900000,'["QA Mijoz"]','{"legalConsultations":2,"psychologicalConsultations":1,"businessConsultations":0}','live','paid');
+ INSERT INTO family_subscriptions(order_id,client_id,tier,mode,members,terms,starts_at,expires_at)
+ SELECT id,client_id,tier,mode,members,terms,now()-interval '1 day',now()+interval '29 days' FROM payment_orders;
 `);
 const server=createLocalServer(createHandler({db:testDatabase(pg),env}));
 server.listen(port,host,()=>console.log(`Isolated QA: ${env.PUBLIC_ORIGIN} (qa-director / qa-password-2026; other roles qa-operator, qa-client, qa-partner)`));

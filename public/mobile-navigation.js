@@ -10,7 +10,7 @@ export const mobileSectionDescriptions = {
  cases:['Holat, mas’ul xodim va keyingi qadam','Ҳолат, масъул ходим ва кейинги қадам'],
  partners:['Mutaxassislar va xizmat ko‘rsatuvchilar','Мутахассислар ва хизмат кўрсатувчилар'],
  clients:['Mijozlarning hisoblari va ma’lumotlari','Мижозларнинг ҳисоблари ва маълумотлари'],
- packages:['Paket muddati va qolgan murojaatlar','Пакет муддати ва қолган мурожаатлар'],
+ packages:['Obuna muddati va qolgan maslahatlar','Обуна муддати ва қолган маслаҳатлар'],
  notifications:['Ichki xabarlar va yetkazish holati','Ички хабарлар ва етказиш ҳолати'],
  team:['Rahbar, koordinator va hamkor hisoblari','Раҳбар, координатор ва ҳамкор ҳисоблари'],
  services:['14 yo‘nalishdan keraklisini tanlang','14 йўналишдан кераклисини танланг'],

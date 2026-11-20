@@ -1,13 +1,17 @@
 import {requestStatuses} from './interface-copy.js';
+import {displayDate} from './payment-state.js';
 
 export function notificationCopy(row,script='lat') {
  const pick=values=>values[script==='cyr'?1:0];
  const event=row.event;
+ if(row.source==='incoming')return {title:pick(['Murojaat qabul qilindi','Мурожаат қабул қилинди']),body:pick(['Murojaatni oching, mijoz bilan bog‘laning va keyingi ishni belgilang.','Мурожаатни очинг, мижоз билан боғланинг ва кейинги ишни белгиланг.'])};
+ if(row.source==='delivery'&&['request.created','created','request_created','case_created'].includes(event))return {title:pick(['Mijozga qabul tasdig‘i','Мижозга қабул тасдиғи']),body:pick(['Mijozga murojaati qabul qilingani haqida xabar yuborish.','Мижозга мурожаати қабул қилингани ҳақида хабар юбориш.'])};
+ if(event==='subscription.activated')return {title:pick(['Yangi obuna faollashdi','Янги обуна фаоллашди']),body:`${row.clientName||pick(['Mijoz','Мижоз'])} · ${row.tier||''} · ${displayDate(row.expiresAt)} ${pick(['gacha','гача'])}`};
  const activity={
   'case.assignment_changed':{title:['Mas’ul xodim o‘zgardi','Масъул ходим ўзгарди'],body:['Murojaatni kim boshqarishini tafsilotlardan tekshiring.','Мурожаатни ким бошқаришини тафсилотлардан текширинг.']},
   'case.deadline_changed':{title:['Bajarish muddati o‘zgardi','Бажариш муддати ўзгарди'],body:['Belgilangan vaqt tafsilotlardagi Qo‘shimcha ma’lumotlarda ko‘rsatiladi.','Белгиланган вақт тафсилотлардаги Қўшимча маълумотларда кўрсатилади.']},
   'case.clarified':{title:['Mijoz ma’lumotlari aniqlashtirildi','Мижоз маълумотлари аниқлаштирилди'],body:['Kerakli xizmat, hudud yoki qulay vaqt yangilandi. Murojaat tafsilotlarini oching.','Керакли хизмат, ҳудуд ёки қулай вақт янгиланди. Мурожаат тафсилотларини очинг.']},
-  'package.used':{title:['Oila paketidan foydalanildi','Оила пакетидан фойдаланилди'],body:['Bajarilgan murojaat paket hisobiga kiritildi. Qolgan limitni Oila paketlari bo‘limidan ko‘ring.','Бажарилган мурожаат пакет ҳисобига киритилди. Қолган лимитни Оила пакетлари бўлимидан кўринг.']}
+  'package.used':{title:['Xizmat limitdan hisoblandi','Хизмат лимитдан ҳисобланди'],body:['Qolgan limitni Obunalar bo‘limidan ko‘ring.','Қолган лимитни Обуналар бўлимидан кўринг.']}
  };
  if(activity[event])return {title:pick(activity[event].title),body:pick(activity[event].body)};
  const changed=['case.status_changed','status_changed','case_updated'].includes(event);

@@ -92,7 +92,13 @@ test('registration, request, tracking, file access, ownership, coordinator, comp
  assert.equal((await call('/feedback',{method:'POST',cookie,body:{number,token:secret,rating:5,comment:'Rahmat'}})).statusCode,200);
  assert.equal((await call(`/cases/${id}`,{cookie})).data.case.feedback.rating,5);
  assert.equal((await call('/stats',{cookie:bossCookie})).data.stats.completed,1);
- assert.equal((await call('/notifications',{cookie:bossCookie})).statusCode,200);
+ const inbox=await call('/notifications',{cookie:bossCookie});
+ assert.equal(inbox.statusCode,200);
+ const arrival=inbox.data.notifications.find(n=>n.id===`request-${id}`);
+ assert.equal(arrival.source,'incoming');assert.equal(arrival.caseNumber,number);
+ assert.equal(arrival.clientName,'Test mijoz');assert.equal(arrival.status,'completed');
+ assert.equal(arrival.tracking_token,undefined);assert.equal(arrival.description,undefined);
+ assert.equal((await call('/notifications',{cookie})).statusCode,403);
  assert.equal((await call('/users',{cookie:bossCookie})).statusCode,200);
  const wrongChange=await call('/auth/password',{method:'POST',cookie,body:{currentPassword:'wrong-password',password:'new-client-password'}});
  assert.equal(wrongChange.statusCode,401);

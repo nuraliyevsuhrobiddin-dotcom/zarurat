@@ -1,4 +1,7 @@
 import {handleAdminEditing,partnerInput} from './admin-editing.mjs';
+import {partnerAccess} from './partner-access.mjs';
+import {enrichSubscriptions,rows,subscriptionCounts} from './subscription-summary.mjs';
+import {requireUnusedBenefit} from './benefit-usage.mjs';
 import { createDatabase, HttpError, query } from './db.mjs';
 import { digest, sessionCookie, currentUser, createSession, hashPassword, requireRole, validateOrigin, rateLimit } from './security.mjs';
 import { compare } from 'bcryptjs';
@@ -32,7 +35,7 @@ export function formatCase(c, user) {
     coordinatorName: c.coordinator?.name || null, coordinatorRole: c.coordinator?.role || null, dueAt: c.due_at,
     createdAt: c.created_at, updatedAt: c.updated_at, clientId: c.client_id,
     ...(user?.role === 'client' && user.id === c.client_id ? { trackingToken: c.tracking_token } : {}),
-    services: (c.services || []).filter(s => !isPartner || s.partner_id === user.partner_id).map(s => ({
+    services: (c.services || []).filter(s => !isPartner || (user.partner_id!=null && s.partner_id === user.partner_id)).map(s => ({
       id: s.id, caseId: s.case_id, title: s.title, partnerId: s.partner_id,
       partnerName: s.partners?.name, status: s.status, price: s.price
     })),
@@ -49,7 +52,7 @@ async function getCase(db, id, user, tracking) {
   if (!tracking && user?.role === 'client') filters.client_id = `eq.${user.id}`;
   const rows = await db('cases', { query: query(filters) });
   const c = rows?.[0];
-  if (!c || (user?.role === 'partner' && !(c.services || []).some(s => s.partner_id === user.partner_id))) {
+  if (!c || (user?.role === 'partner' && (user.partner_id==null || !(c.services || []).some(s => s.partner_id === user.partner_id)))) {
     throw new HttpError(404, 'Murojaat topilmadi.');
   }
   return c;
@@ -161,9 +164,14 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         res.setHeader('Set-Cookie', sessionCookie('', secure, true));
         result = { ok: true };
       } else if (path === '/requests' && method === 'POST') {
+        const owner=user?.id==null?'guest':`user:${user.id}`;
+        if(Object.hasOwn(body,'requestOwner')&&body.requestOwner!==owner){
+          throw new HttpError(409,'Hisob o‘zgardi. Ma’lumotlarni tekshirib, yangi murojaat oching.','account_changed');
+        }
         await rateLimit(req, db, 'request');
         const input = requestInput(body);
-        result = await rpc('zar_create_request', { p_input: input, p_user_id: user?.role === 'client' ? user.id : null });
+        result = await rpc('zar_submit_request', { p_input: input, p_user_id: user?.role === 'client' ? user.id : null, p_actor_id: staff.includes(user?.role)?user.id:null });
+        if(result?.subscriptionRequired)throw new HttpError(402,'Bu raqam uchun bepul murojaat ishlatilgan. Davom etish uchun hisobingizga kiring va faol obunani tanlang.','subscription_required');
       } else if (path === '/track' && method === 'POST') {
         await rateLimit(req, db, 'track');
         result = { case: formatCase(await trackingCase(db, body), null) };
@@ -219,11 +227,12 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           result = { case: formatCase(await getCase(db,Number(addService[1]),user),user) };
         } else if (serviceMatch && method === 'PATCH') {
           requireRole(user,[...staff,'partner']);
+          if(user.role==='partner'&&(user.partner_id==null||body.partnerId!==undefined))throw new HttpError(403,'Faqat o‘zingizga biriktirilgan xizmat holatini yangilashingiz mumkin.');
           const id = await rpc('zar_update_service', { p_id: integer(serviceMatch[1],'ID'), p_status: choice(body.status,['pending','accepted','contacted','delivered','completed','cancelled'],'Holat'), p_partner_id: body.partnerId == null ? null : integer(body.partnerId,'Hamkor'), p_change_partner: body.partnerId !== undefined, p_actor_id: user.id });
           result = { case: formatCase(await getCase(db,id,user),user) };
         } else if (path === '/partners') {
           requireRole(user,staff);
-          if (method === 'GET') result = { partners: (await db('partners', { query: query({ order: 'id.desc' }) })).map(p => ({ ...p, contractStatus: p.contract_status })) };
+          if (method === 'GET') result = { partners: await partnerAccess((await rows(db,'partners',{order:'id.desc'})).map(p=>({...p,contractStatus:p.contract_status})),db) };
           else if (method === 'POST') {
             const row = partnerInput(body);
             result = { partner: (await db('partners',{method:'POST',body:row}))[0] };
@@ -232,7 +241,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           requireRole(user,path === '/users' ? ['director'] : staff);
           const role = path === '/team' ? 'in.(operator,director)' : path === '/clients' ? 'eq.client' : 'in.(operator,director,partner)';
           const accountsEnabled=stage2(env)||telegramReady(env);
-          result = { [path === '/clients' ? 'clients' : 'users']: (await db('users',{query:query({select:selectUsers+(accountsEnabled?',blocked_at,phone_verified_at,telegram_chat_id':''),role,order:'id.desc',...(path==='/team'&&accountsEnabled?{blocked_at:'is.null'}:{})})})).map(profile) };
+          result = { [path === '/clients' ? 'clients' : 'users']: (await rows(db,'users',{select:selectUsers+(accountsEnabled?',blocked_at,phone_verified_at,telegram_chat_id':''),role,order:'id.desc',...(path==='/team'&&accountsEnabled?{blocked_at:'is.null'}:{})})).map(profile) };
           if(path==='/clients'){const counts=await rpc('zar_client_counts',{}).catch(()=>null);result.clients=result.clients.map(client=>({...client,caseCount:counts?Number(counts[client.id]||0):null}));}
         } else if (path === '/users' && method === 'POST') {
           requireRole(user,['director']);
@@ -261,18 +270,22 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           result={package:{...saved,tier:packageName(saved.tier)}};
         } else if (packageUse && method === 'POST') {
           requireRole(user,staff);
+          await requireUnusedBenefit(db,integer(body.caseId,'Murojaat'));
           await rpc('zar_use_package',{p_id:integer(packageUse[1],'Paket'),p_case_id:integer(body.caseId,'Murojaat'),p_actor_id:user.id});
           result={ok:true};
         } else if (path === '/notifications' && method === 'GET') {
           requireRole(user,staff);
-          const [deliveries,activity]=await Promise.all([
+          const [deliveries,activity,subscriptions,requests]=await Promise.all([
             db('notifications',{query:query({select:'*,cases(number)',order:'id.desc',limit:100})}),
-            db('history',{query:query({select:'id,case_id,kind,created_at,cases(number,phone)',kind:'in.(assignment,deadline,clarification,package)',order:'id.desc',limit:100})})
+            db('history',{query:query({select:'id,case_id,kind,created_at,cases(number,phone)',kind:'in.(assignment,deadline,clarification,package)',order:'id.desc',limit:100})}),
+            db('family_subscriptions',{query:query({select:'id,client_id,tier,starts_at,expires_at,users(name,phone)',mode:'eq.live',status:'eq.active',order:'starts_at.desc',limit:100})}),
+            db('cases',{query:query({select:'id,number,name,phone,created_at,status',order:'id.desc',limit:100})})
           ]);
-          result={notifications:notificationFeed(deliveries,activity)};
+          result={notifications:notificationFeed(deliveries,activity,subscriptions,requests)};
         } else if (path === '/stats' && method === 'GET') {
           requireRole(user,staff);
-          result={stats:await rpc('zar_stats',{})};
+          const [stats,counts]=await Promise.all([rpc('zar_stats',{}),subscriptionCounts(db)]);
+          result={stats:{...stats,...counts}};
         } else if (fileMatch && method === 'GET') {
           if(user.role==='partner')throw new HttpError(403,'Faylga ruxsat yo‘q.');
           const files=await db('attachments',{query:query({select:'*',id:`eq.${integer(fileMatch[1],'Fayl')}`,limit:1})});
@@ -283,6 +296,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         }
       }
       if(result===undefined)throw new HttpError(404,'Bu bo‘lim topilmadi.');
+      await enrichSubscriptions(result,user,db);
       if(method!=='GET'&&telegramReady(env)&&(/^\/cases\//.test(path)||/^\/services\//.test(path)||path==='/requests')){
         await drainNotifications(db,env).catch(error=>console.error(JSON.stringify({event:'notification_queue_failure',category:error.name})));
       }
@@ -290,7 +304,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
     } catch(error) {
       res.statusCode=error instanceof HttpError?error.status:500;
       if(res.statusCode>=500)console.error(JSON.stringify({event:'api_failure',status:res.statusCode,category:error.name||'Error'}));
-      res.end(JSON.stringify({error:error instanceof HttpError?error.message:'Kutilmagan xatolik. Qayta urinib ko‘ring.'}));
+      res.end(JSON.stringify({error:error instanceof HttpError?error.message:'Kutilmagan xatolik. Qayta urinib ko‘ring.',...(error instanceof HttpError&&['subscription_required','account_changed'].includes(error.code)?{code:error.code}:{})}));
     }
   };
 }

@@ -2,7 +2,55 @@
    ZARURIYAT — Mobil prezentatsiya qatlami (mobile-app.css)
    ============================================================ */
 
+/* Customer decisions: readable costs, comparisons and recovery guidance. */
+.tariff-comparison{margin:0 0 22px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;color:#17263b;overflow:hidden}
+.tariff-comparison>summary,.customer-help>summary{min-height:44px;padding:13px 16px;cursor:pointer;font-weight:650;line-height:1.5;color:#124ba9}
+.tariff-comparison>summary:focus-visible,.customer-help>summary:focus-visible{outline:3px solid #1758ca;outline-offset:-3px}
+.tariff-comparison[open]>summary{border-bottom:1px solid #dfe3ea}
+.tariff-comparison table{width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px;line-height:1.5}
+.tariff-comparison caption{padding:14px 16px 8px;text-align:left;font-weight:600;color:#475569}
+.tariff-comparison th,.tariff-comparison td{padding:12px 10px;border-bottom:1px solid #e2e8f0;text-align:center;white-space:normal;overflow-wrap:anywhere}
+.tariff-comparison th:first-child{width:38%;text-align:left}
+.tariff-comparison thead th{font-size:12px;letter-spacing:.02em;background:#f0f5ff;color:#071b3b}
+.tariff-comparison tbody th{font-weight:500}
+.tariff-comparison tbody td{font-weight:700;font-variant-numeric:tabular-nums}
+.tariff-comparison>p{padding:12px 16px;margin:0;color:#475569;font-size:13px;line-height:1.65}
+.tariff-conditions{padding:14px 0;margin-top:12px;border-top:1px solid #dfe3ea;color:#475569;font-size:13px;line-height:1.7}
+.tariff-conditions p{margin:0 0 8px!important;font-size:inherit!important;line-height:inherit!important;color:inherit!important}
+.tariff-conditions p:last-child{margin-bottom:0!important}
+.tariff-conditions strong{color:#17263b}
+.package-card .tariff-conditions{margin-bottom:6px}
+.customer-help{margin:16px 0;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#17263b}
+.customer-help>p,.customer-help>.customer-help-actions{margin:0;padding:0 16px 14px;line-height:1.7;font-size:14px}
+.customer-help a,.customer-response-note a{color:#124ba9;text-decoration:underline;text-underline-offset:3px;font-weight:600}
+.customer-help-actions{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.customer-help-actions a{display:inline-flex;align-items:center;min-height:44px}
+.customer-response-note{margin:18px 0 0;color:#475569;font-size:14px;line-height:1.7}
+.recovery-guidance>p{margin:14px 0;color:#475569;font-size:14px;line-height:1.7}
+.recovery-guidance>.customer-help{margin:12px 0}
+.faq-list>.customer-help{border:0;border-radius:0;margin:0}
+.faq-list>.customer-help>summary{color:inherit}
+.faq-list>.customer-help>p{padding-left:0;padding-right:0}
+@media(min-width:821px){.mobile-home-shortcuts{display:none!important}.package-card .tariff-conditions{font-size:13px}.tariff-comparison table{font-size:15px}}
+@media(max-width:480px){
+ .tariff-comparison th,.tariff-comparison td{padding:10px 5px}
+ .tariff-comparison th:first-child{width:37%}
+ .tariff-comparison thead th{font-size:11px;letter-spacing:0}
+ .tariff-comparison table{font-size:12px}
+ .tariff-comparison caption{padding:12px 12px 6px;font-size:13px}
+ .tariff-comparison>summary,.customer-help>summary{padding:12px}
+ .tariff-comparison>p{padding:12px;font-size:13px}
+ .tariff-conditions{font-size:13px}
+}
+
 /* AUTH DIALOGIDA YORUG' TEMA */
+@media(min-width:821px){
+ .mobile-record-list:has(>.client-record){display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+ .client-record{padding:20px;background:#fff;border:1px solid #e0e3e7;border-radius:14px;min-width:0;overflow-wrap:anywhere}
+ .client-record h2{font-size:18px;margin:0 0 8px}
+ .client-record .record-contact{display:block;margin-bottom:12px}
+ .client-record .record-package{margin:12px 0}
+}
 h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .brand-logo{object-fit:contain;background:#071b3b}
 .auth-dialog-wrap{background:#fff;color:#17263b;padding:30px 24px}
@@ -33,10 +81,11 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .auth-close:hover{background:#e2e8f0;color:#071b3b}
 
 @media(max-width:820px){
+ html{scroll-behavior:auto;scroll-padding-bottom:calc(100px + env(safe-area-inset-bottom))}
  :root{--mob-bg:#f4f5f0;--mob-surface:#fff;--mob-ink:#071b3b;--mob-secondary:#475569;--mob-border:#dfe3ea;--mob-blue:#1758ca;--mob-blue-dk:#124ba9;--mob-accent:#d9a73a}
  body,input,select,textarea,button{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
  body{background:var(--mob-bg);color:var(--mob-ink);font-size:15px;line-height:1.5}
- body.mobile-page-open{overflow:hidden;height:100dvh;padding-bottom:0}
+ body.mobile-page-open{overflow:visible;height:auto;min-height:100dvh;padding-bottom:0}
  h1,h2,h3,.brand-name,.stat-value{font-family:inherit;letter-spacing:-.4px}
  .container{padding-left:16px;padding-right:16px}
  .btn,.btn.small,.auth-submit-btn,.script-toggle{min-height:44px;padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;line-height:1.35;box-shadow:none}
@@ -345,9 +394,9 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
     z-index: 30 !important;
     min-height: calc(58px + env(safe-area-inset-top)) !important;
     height: auto !important;
-    background: rgba(255, 255, 255, 0.98) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
+    background: #fff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     padding: calc(7px + env(safe-area-inset-top)) 16px 7px !important;
     display: flex !important;
     align-items: center !important;
@@ -827,8 +876,8 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 }
 
 @media(max-width:820px){
- body.route-loading #app{visibility:hidden}
- body.route-loading:not(.mobile-page-open)::after{content:"Yuklanmoqda?";position:fixed;inset:0;display:grid;place-items:center;background:var(--mob-bg);color:var(--mob-secondary);z-index:40}
+ /* Loading forms already have an inline status. Keep Back and navigation usable. */
+ body.route-loading #app{visibility:visible}
 }
 
 /* Keep request confirmations inside the viewport, including long tracking keys. */
@@ -1069,3 +1118,20 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 }
 .payment-history-title { margin: 18px 0 2px; color: #17263b; font-size: 16px; line-height: 1.4; }
 .cabinet-family-plans .package-card [data-action="buy-package"]:disabled { border-color: #cbd5e1; background: #e9edf3; color: #52647b; cursor: not-allowed; box-shadow: none; }
+.payment-history-details>summary,.payment-row summary{min-height:44px;display:flex;align-items:center;cursor:pointer;gap:8px}
+.payment-row code{display:block;max-width:100%;overflow-wrap:anywhere;white-space:normal;font-size:12px}
+#client-results>[data-action="clients-more"]{margin-top:16px;min-height:44px}
+.admin-stat-link{display:block;color:inherit;text-decoration:none;min-width:0}
+.admin-stat-link:focus-visible{outline:3px solid #1758ca;outline-offset:3px;border-radius:16px}
+.admin-work-queue{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.admin-work-queue>a{min-height:44px}
+.admin-report{margin-top:20px}
+.admin-report>summary{padding:18px;min-height:52px;cursor:pointer;font-weight:650}
+.admin-report-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.admin-notification-list,.team-account-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.admin-notification-list>.notification-record,.team-account-list>.team-record{padding:16px;background:#fff;border:1px solid #e0e3e7;border-radius:14px;min-width:0;overflow-wrap:anywhere}
+.admin-notification-list header,.team-account-list header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.admin-notification-list header>div,.team-account-list header>div{min-width:0}
+.admin-notification-list h2,.team-account-list h3{font-size:16px;margin:0}
+.admin-notification-list .record-contact{display:block;margin:12px 0;min-height:44px;padding:10px;background:#f0f4fb;border-radius:10px;text-decoration:none}
+.password-target strong,.password-target p{overflow-wrap:anywhere}

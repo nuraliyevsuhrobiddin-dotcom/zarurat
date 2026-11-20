@@ -56,6 +56,7 @@ export async function handleTelegramCases(m,db,env){
  else if(state==='already_rated')await send('Bu murojaat uchun baho oldin saqlangan.');
  else if(state==='rating_unavailable')await send('Faqat o‘z hisobingizdagi yakunlangan murojaatni baholash mumkin.');
  else if(state==='missing')await send('Murojaat topilmadi yoki hisobingizga tegishli emas. /cases orqali o‘z murojaatlaringizni ko‘ring.');
+ else if(state==='subscription_required')await send('Bu telefon raqami uchun birinchi bepul murojaat ishlatilgan. Keyingi murojaat uchun faol obuna kerak. Qoralamangiz saqlandi. Obunani faollashtirgach yuborishni qayta tasdiqlang.',{inline_keyboard:[[{text:'Obuna tanlash',url:origin+'/#family'}],[{text:'Hisobga kirish',url:origin+'/#login'}]]});
  else if(state==='limited')await send('Bir soatda 5 tagacha murojaat yuborish mumkin. Keyinroq qayta urinib ko‘ring.',cancel);
  else if(state==='expired')await send('Qoralama muddati tugadi. /new orqali qayta boshlang.');
  else await send('🏠 ZARURIYAT · Asosiy menyu\n\nOilangiz uchun kerakli xizmatni birga tashkil qilamiz.\n\n📝 Murojaat yuborish — yangi so‘rov\n📋 Murojaatlarim — raqamlar va holatlar\n🗂 Xizmatlar — yordam yo‘nalishlari\n\nDavom etish uchun pastdagi tugmani tanlang.');

@@ -22,8 +22,8 @@ export const sectionHelp = {
  cases:['Mijozlarning arizalari. Mas’ul xodimni belgilang va ish holatini yangilang.','Мижозларнинг аризалари. Масъул ходимни белгиланг ва иш ҳолатини янгиланг.'],
  partners:['Xizmat ko‘rsatuvchi mutaxassis va tashkilotlar ro‘yxati.','Хизмат кўрсатувчи мутахассис ва ташкилотлар рўйхати.'],
  clients:['Ro‘yxatdan o‘tgan mijozlar. Hisobsiz arizalar Murojaatlar bo‘limida.','Рўйхатдан ўтган мижозлар. Ҳисобсиз аризалар Мурожаатлар бўлимида.'],
- packages:['Mijozning paketi, muddati va qolgan murojaatlar soni. Bu bo‘lim pul yechmaydi.','Мижознинг пакети, муддати ва қолган мурожаатлар сони. Бу бўлим пул ечмайди.'],
- notifications:['Tayyorlangan xabarlar va yuborish holati. SMS yuborish oynasi emas.','Тайёрланган хабарлар ва юбориш ҳолати. SMS юбориш ойнаси эмас.'],
+ packages:['Faol obunalar, amal qilish muddati va maslahat limitlari.','Фаол обуналар, амал қилиш муддати ва маслаҳат лимитлари.'],
+ notifications:['Yangi obunalar, murojaatlar va xabar yetkazish holati.','Янги обуналар, мурожаатлар ва хабар етказиш ҳолати.'],
  team:['Saytga kiradigan rahbar, koordinator va hamkor hisoblari. Hisobni faqat rahbar ochadi.','Сайтга кирадиган раҳбар, координатор ва ҳамкор ҳисоблари. Ҳисобни фақат раҳбар очади.']
 };
 export const copyTranslations=Object.fromEntries([...Object.values(categoryTitles),...Object.values(requestStatuses).map(s=>s.title)]);

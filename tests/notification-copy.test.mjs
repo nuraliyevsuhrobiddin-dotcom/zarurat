@@ -13,3 +13,15 @@ test('historical notifications describe their own event, not the current case st
  assert.equal(unknown.body,'Existing note');
  assert.equal(notificationCopy({event:'completed'},'cyr').title,'Иш бажарилди');
 });
+
+test('outgoing acceptance confirmations cannot look like new incoming requests',()=>{
+ for(const event of ['request.created','created','request_created','case_created']){
+  const outgoing=notificationCopy({source:'delivery',event,status:'failed'});
+  assert.equal(outgoing.title,'Mijozga qabul tasdig‘i');
+  assert.match(outgoing.body,/Mijozga murojaati qabul qilingani/);
+  assert.doesNotMatch(outgoing.body,/Yangi murojaatlar|Mas’ul xodim/);
+ }
+ assert.equal(notificationCopy({source:'delivery',event:'request.created'},'cyr').title,'Мижозга қабул тасдиғи');
+ assert.equal(notificationCopy({source:'incoming',event:'request.created'}).title,'Murojaat qabul qilindi');
+ assert.equal(notificationCopy({event:'request.created'}).title,'Yangi murojaat keldi');
+});
