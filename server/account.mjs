@@ -53,16 +53,7 @@ export async function handleAccount({path,method,user,body,req,db,env}){
  }
  if(path==='/account'&&method==='GET'){
   requireRole(user);
-  let partner;
-  if(user.role==='partner'){
-   partner=null;
-   if(user.partner_id!=null){
-    const rows=await db('partners',{query:new URLSearchParams({select:'id,name,phone,address,category,hours,region,contract_status',id:`eq.${user.partner_id}`,limit:'1'}).toString()});
-    const p=rows[0];
-    if(p)partner={id:p.id,name:p.name,phone:p.phone,address:p.address,category:p.category,hours:p.hours,region:p.region,contractStatus:p.contract_status};
-   }
-  }
-  return {stage2Enabled:stage2(env),phoneVerified:Boolean(user.phone_verified_at),telegramConnected:Boolean(user.telegram_chat_id),smsEnabled:smsReady(env),telegramEnabled:telegramReady(env),...(user.role==='partner'?{partner}:{})};
+  return {stage2Enabled:stage2(env),phoneVerified:Boolean(user.phone_verified_at),telegramConnected:Boolean(user.telegram_chat_id),smsEnabled:smsReady(env),telegramEnabled:telegramReady(env)};
  }
  if(['/auth/recovery/request','/auth/phone/request'].includes(path)&&method==='POST'){
   if(!smsReady(env))throw new HttpError(503,'SMS orqali tasdiqlash hali ulanmagan.');

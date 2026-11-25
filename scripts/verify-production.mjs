@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 
 const base='https://www.zaruriyat.uz';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
-const files=['index.html','app.js','api.js','auth-input.js','package-tiers.js','site-content.js','service-content.js','ui-localization.js','styles.css','mobile-app.css','manifest.json','images/qarshi-center.jpg'];
+const files=['index.html','app.js','api.js','auth-input.js','package-tiers.js','site-content.js','manual-payment.js','service-content.js','ui-localization.js','styles.css','mobile-app.css','manifest.json','images/qarshi-center.jpg'];
 const mismatches=[];
 await Promise.all(files.map(async file=>{
  const response=await fetch(`${base}/${file}`,{signal:AbortSignal.timeout(20000)});

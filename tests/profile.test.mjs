@@ -20,13 +20,6 @@ test('profile contains privacy, help and script controls without disabled servic
  assert.doesNotMatch(html,/SMS|Tasdiqlanmagan|telegram-unlink|telegram-link/);
 });
 
-test('partner profile separates own organization from personal account and opens assigned services',()=>{
- const html=profile({partner:{id:1,name:'<Own organization>',phone:'+998901234567',category:'legal',address:'Qarshi',hours:'09-18',region:'Qashqadaryo',contractStatus:'active'}},'partner');
- assert.match(html,/&lt;Own organization&gt;/);assert.match(html,/Hamkor tashkilotingiz/);assert.match(html,/href="#cabinet\/cases"/);assert.match(html,/href="\/aloqa\/"/);assert.match(html,/tuzatish uchun koordinatorga/);
- assert.doesNotMatch(html,/data-action="partner-edit"|data-action="user-edit"|<Own organization>/);
- const unlinked=profile({partner:null},'partner');assert.match(unlinked,/tashkilot hali biriktirilmagan/);
- assert.doesNotMatch(profile({partner:{name:'Unexpected'}}),/Unexpected|Hamkor tashkilotingiz/);
-});
 test('available account actions remain accessible while Telegram management is collapsed',()=>{
  const html=profile({stage2Enabled:true,smsEnabled:true,phoneVerified:false,telegramEnabled:true,telegramConnected:true});
  assert.match(html,/data-action="phone-verify-request"/);
@@ -35,18 +28,16 @@ test('available account actions remain accessible while Telegram management is c
  assert.doesNotMatch(html,/<details[^>]*\bopen\b/);
 });
 
-test('staff and partner profiles show work and contact links instead of customer guidance',()=>{
- for(const role of ['director','operator','partner']){
+test('staff profiles show work links instead of customer guidance',()=>{
+ for(const role of ['director','operator']){
   const html=profile({},role);
-  assert.match(html,/href="#cabinet\/cases"/);assert.match(html,/href="\/aloqa\/"/);
-  assert.doesNotMatch(html,/href="#faq"|href="#how"|data-action="request"|href="#checkout/);
+  assert.match(html,/href="#cabinet\/cases"/);
+  assert.doesNotMatch(html,/href="#faq"|href="#how"|data-action="request"|href="#checkout|Hamkor tashkilotingiz/);
  }
 });
 
-test('coordinator and director profiles expose daily work with role-safe account management',()=>{
- const operator=profile({},'operator'),director=profile({},'director'),partner=profile({},'partner');
- for(const html of [operator,director]){assert.match(html,/href="#cabinet\/cases\?tab=new"/);assert.match(html,/href="#cabinet\/cases\?tab=open&assignee=me"/);assert.match(html,/Har bir xizmat natijasini tekshiring/);}
+test('coordinator and director profiles describe the phone workflow with role-safe account management',()=>{
+ const operator=profile({},'operator'),director=profile({},'director');
+ for(const html of [operator,director]){assert.match(html,/href="#cabinet\/cases\?tab=new"/);assert.match(html,/href="#cabinet\/cases\?tab=open&assignee=me"/);assert.match(html,/mijozga qo‘ng‘iroq qiling/);assert.match(html,/Bajarildi/);assert.doesNotMatch(html,/hamkorni biriktiring|Har bir xizmat natijasini/);}
  assert.doesNotMatch(operator,/href="#cabinet\/team"/);assert.match(director,/href="#cabinet\/team"/);
- assert.match(partner,/Xizmatni qanday bajaraman/);assert.match(partner,/Umumiy murojaatni koordinator yopadi/);assert.doesNotMatch(partner,/href="#cabinet\/team"|assignee=me|tab=new/);
- assert.ok(partner.indexOf('Mening xizmatlarim')<partner.indexOf('Hamkor tashkilotingiz'));
 });

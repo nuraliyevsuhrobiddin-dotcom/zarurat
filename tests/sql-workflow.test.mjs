@@ -36,8 +36,9 @@ async function call(path,{method='GET',body,cookie}={}){
  await handler(req,res);return res;
 }
 
-test('all SQL migrations execute; request, assignment, partner steps, notifications and package persist together',async()=>{
+test('all SQL migrations execute; request, assignment, phone closing, notifications and package persist together',async()=>{
  assert.equal(await value('SELECT zar_assignment_ready() AS r'),true);
+ assert.equal(await value('SELECT zar_phone_coordination_ready() AS r'),true);
  const created=await create(),id=created.case.id;
  assert.equal(await value('SELECT count(*)::int AS r FROM notifications WHERE case_id=$1 AND event=\'request.created\'',[id]),1);
  await pg.query('SELECT zar_update_case($1,$2::jsonb,1)',[id,JSON.stringify({coordinator_id:2,status:'reviewing',note:'PRIVATE SQL NOTE'})]);
@@ -45,13 +46,14 @@ test('all SQL migrations execute; request, assignment, partner steps, notificati
  await assert.rejects(pg.query('SELECT zar_add_service($1,$2,2,0,2)',[id,'Pending must fail']),/faol shartnomali/);
  assert.equal(await value('SELECT count(*)::int AS r FROM services WHERE case_id=$1',[id]),0);
  await pg.query('SELECT zar_add_service($1,$2,1,0,2)',[id,'Legal service']);
- const sid=await value('SELECT id AS r FROM services WHERE case_id=$1',[id]);
- await assert.rejects(pg.query('SELECT zar_update_case($1,$2::jsonb,2)',[id,'{"status":"completed"}']),/Avval barcha/);
- await assert.rejects(pg.query('SELECT zar_update_service($1,$2,null,false,4)',[sid,'completed']),/Keyingi bosqich/);
- for(const status of ['accepted','contacted','delivered','completed'])await pg.query('SELECT zar_update_service($1,$2,null,false,4)',[sid,status]);
+ // The coordinator arranged the work by phone, so closing needs no partner step and closes the old service.
  await pg.query('SELECT zar_update_case($1,$2::jsonb,2)',[id,'{"status":"completed"}']);
  assert.equal(await value('SELECT status AS r FROM cases WHERE id=$1',[id]),'completed');
- assert.equal(await value('SELECT count(*)::int AS r FROM notifications WHERE case_id=$1',[id]),8);
+ assert.equal(await value('SELECT status AS r FROM services WHERE case_id=$1',[id]),'completed');
+ assert.equal(await value('SELECT count(*)::int AS r FROM notifications WHERE case_id=$1',[id]),4);
+ const plain=(await create()).case.id;
+ await pg.query('SELECT zar_update_case($1,$2::jsonb,2)',[plain,'{"status":"completed"}']);
+ assert.equal(await value('SELECT status AS r FROM cases WHERE id=$1',[plain]),'completed');
  assert.equal(await value('SELECT count(*)::int AS r FROM history WHERE case_id=$1 AND kind=\'note\'',[id]),1);
  const p=await value(`SELECT zar_save_package(3,'Komfort',now()+interval '1 year',1,'["SQL client"]') AS r`);
  await pg.query('SELECT zar_use_package($1,$2,2)',[p.id,id]);
@@ -106,4 +108,11 @@ test('migration 011 is repeatable, preserves records and restricts RPC to server
   assert.equal(await value('SELECT has_function_privilege($1,\'zar_assignment_ready()\',\'EXECUTE\') AS r',[role]),false);
  }
  assert.equal(await value('SELECT has_function_privilege(\'service_role\',\'zar_update_case(bigint,jsonb,bigint)\',\'EXECUTE\') AS r'),true);
+ // Production applies 016 after 011; it is repeatable and ends partner sessions.
+ await pg.exec("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(repeat('a',64),4,now()+interval '1 hour')");
+ for(let i=0;i<2;i++)await pg.exec(await readFile('migrations/016_phone_coordination.sql','utf8'));
+ assert.equal(await value('SELECT zar_phone_coordination_ready() AS r'),true);
+ assert.equal(await value('SELECT count(*)::int AS r FROM sessions WHERE user_id=4'),0);
+ assert.deepEqual((await pg.query('SELECT id,coordinator_id,status FROM cases ORDER BY id')).rows,before);
+ for(const role of ['anon','authenticated'])assert.equal(await value('SELECT has_function_privilege($1,\'zar_phone_coordination_ready()\',\'EXECUTE\') AS r',[role]),false);
 });

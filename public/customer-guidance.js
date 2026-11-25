@@ -23,7 +23,7 @@ export function tariffConditions(tier,script='lat'){
 }
 
 export function responseGuidance(script='lat'){
- return `<p class="customer-response-note">${label(script,'Murojaatni istalgan vaqtda yuborishingiz mumkin. Koordinatorning bog‘lanish vaqti alohida kelishiladi. Tezroq bog‘lanish uchun markazga qo‘ng‘iroq qiling:','Мурожаатни исталган вақтда юборишингиз мумкин. Координаторнинг боғланиш вақти алоҳида келишилади. Тезроқ боғланиш учун марказга қўнғироқ қилинг:')} ${phone}.</p>`;
+ return `<p class="customer-response-note">${label(script,'Murojaatni istalgan vaqtda yuborishingiz mumkin. Koordinator uni ko‘rib, sizga qo‘ng‘iroq qiladi. Shoshilinch bo‘lsa, o‘zingiz qo‘ng‘iroq qiling:','Мурожаатни исталган вақтда юборишингиз мумкин. Координатор уни кўриб, сизга қўнғироқ қилади. Шошилинч бўлса, ўзингиз қўнғироқ қилинг:')} ${phone}.</p>`;
 }
 
 export function paymentHelp(script='lat'){
@@ -37,7 +37,7 @@ export function trackingHelp(script='lat',signedClient=false){
 
 export function recoveryGuidance(script='lat'){
  const t=(lat,cyr)=>label(script,lat,cyr);
- return `<div class="recovery-guidance"><p>${t('Kod Telegram botga yuboriladi. Telegram hali bog‘lanmagan bo‘lsa, keyingi qadamda bot orqali o‘z telefon raqamingizni tasdiqlang.','Код Telegram ботга юборилади. Telegram ҳали боғланмаган бўлса, кейинги қадамда бот орқали ўз телефон рақамингизни тасдиқланг.')}</p><details class="customer-help"><summary>${t('Xodim yoki rahbar hisobi uchun','Ходим ёки раҳбар ҳисоби учун')}</summary><p>${t('Telegram hisobingizga oldindan bog‘langan bo‘lishi kerak. Koordinator va hamkor parolini rahbar ham almashtirishi mumkin.','Telegram ҳисобингизга олдиндан боғланган бўлиши керак. Координатор ва ҳамкор паролини раҳбар ҳам алмаштириши мумкин.')}</p></details></div>`;
+ return `<div class="recovery-guidance"><p>${t('Kod Telegram botga yuboriladi. Telegram hali bog‘lanmagan bo‘lsa, keyingi qadamda bot orqali o‘z telefon raqamingizni tasdiqlang.','Код Telegram ботга юборилади. Telegram ҳали боғланмаган бўлса, кейинги қадамда бот орқали ўз телефон рақамингизни тасдиқланг.')}</p><details class="customer-help"><summary>${t('Xodim yoki rahbar hisobi uchun','Ходим ёки раҳбар ҳисоби учун')}</summary><p>${t('Telegram hisobingizga oldindan bog‘langan bo‘lishi kerak. Koordinator parolini rahbar ham almashtirishi mumkin.','Telegram ҳисобингизга олдиндан боғланган бўлиши керак. Координатор паролини раҳбар ҳам алмаштириши мумкин.')}</p></details></div>`;
 }
 
 export function customerFaqs(script='lat'){

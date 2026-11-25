@@ -10,12 +10,6 @@ export function caseFilters(url,user,now=new Date()) {
     const assignee=choice(params.get('assignee'),['me','unassigned'],'Mas’ul xodim');
     filters.coordinator_id=assignee==='me'?`eq.${user.id}`:'is.null';
   }
-  if(user.role==='partner'){
-    // Filtering the inner relation restricts both the parent cases and services.
-    filters.select=filters.select.replace('services(*','services!inner(*');
-    filters['services.partner_id']=`eq.${user.partner_id||0}`;
-    if(params.get('serviceStatus'))filters['services.status']=`eq.${choice(params.get('serviceStatus'),['pending','accepted','contacted','delivered','completed','cancelled'],'Xizmat holati')}`;
-  }
   const status=params.get('status');
   const category=params.get('category');
   if(status)filters.status=`eq.${choice(status,publicConfig.statuses,'Holat')}`;

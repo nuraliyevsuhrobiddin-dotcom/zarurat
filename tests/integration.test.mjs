@@ -84,11 +84,10 @@ test('registration, request, tracking, file access, ownership, coordinator, comp
  const detail=await call(`/cases/${id}`,{cookie});
  assert.equal(detail.data.case.coordinatorName,'Rahbar');
  assert.ok(!detail.data.case.history.some(h=>h.kind==='note'));
- assert.equal((await call(`/cases/${id}`,{method:'PATCH',cookie:bossCookie,body:{status:'completed'}})).statusCode,400);
- const service=await call(`/cases/${id}/services`,{method:'POST',cookie:bossCookie,body:{title:'Huquqiy maslahat',partnerId:partner.data.partner.id,price:0}});
- assert.equal(service.statusCode,200);
- await call(`/services/${service.data.case.services[0].id}`,{method:'PATCH',cookie:bossCookie,body:{status:'completed'}});
- assert.equal((await call(`/cases/${id}`,{method:'PATCH',cookie:bossCookie,body:{status:'completed'}})).statusCode,200);
+ // Partner work is arranged by phone: the old assignment endpoints are gone and closing needs no partner service.
+ assert.equal((await call(`/cases/${id}/services`,{method:'POST',cookie:bossCookie,body:{title:'Huquqiy maslahat',partnerId:partner.data.partner.id,price:0}})).statusCode,404);
+ assert.equal((await call('/services/1',{method:'PATCH',cookie:bossCookie,body:{status:'completed'}})).statusCode,404);
+ assert.equal((await call(`/cases/${id}`,{method:'PATCH',cookie:bossCookie,body:{status:'completed',note:'Advokat bilan telefon orqali kelishildi'}})).statusCode,200);
  assert.equal((await call('/feedback',{method:'POST',cookie,body:{number,token:secret,rating:5,comment:'Rahmat'}})).statusCode,200);
  assert.equal((await call(`/cases/${id}`,{cookie})).data.case.feedback.rating,5);
  assert.equal((await call('/stats',{cookie:bossCookie})).data.stats.completed,1);
@@ -127,6 +126,8 @@ test('coordinator clarifies the short request, clears a deadline and preserves a
  // Upgrade is repeatable and does not remove the request or existing history.
  await pg.exec(await readFile('migrations/003_intake_clarification.sql','utf8'));
  assert.equal((await call(`/cases/${id}`,{cookie})).data.case.category,'legal');
+ // Later migrations re-apply after 003 in production order.
+ await pg.exec(await readFile('migrations/016_phone_coordination.sql','utf8'));
 });
 
 test('public package names work with legacy storage and client counts cover more than one page',async()=>{
@@ -165,7 +166,7 @@ test('customer requests, customer accounts and staff accounts remain separate',a
  assert.ok(clients.every(u=>u.role==='client'));
  assert.ok(!clients.some(u=>u.id===boss.data.user.id));
  const staff=(await call('/users',{cookie})).data.users;
- assert.ok(staff.every(u=>['director','operator','partner'].includes(u.role)));
+ assert.ok(staff.every(u=>['director','operator'].includes(u.role)));
  const team=(await call('/team',{cookie})).data.users;
  assert.ok(team.every(u=>['director','operator'].includes(u.role)));
  const assigned=await call(`/cases/${id}`,{method:'PATCH',cookie,body:{coordinatorId:boss.data.user.id}});

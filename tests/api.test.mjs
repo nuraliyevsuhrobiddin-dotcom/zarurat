@@ -86,13 +86,13 @@ test('role boundary rejects client staff creation',async()=>{
  const res=await request('/users',{method:'POST',body:{},headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json',cookie},db});
  assert.equal(res.statusCode,403);
 });
-test('case formatter hides notes, tokens and other partner services',()=>{
- const c={id:1,client_id:7,tracking_token:'secret',history:[{id:1,kind:'note',message:'private'},{id:2,kind:'status',message:'received'}],services:[{id:1,partner_id:4},{id:2,partner_id:5}],attachments:[{id:3}],feedback:[]};
+test('case formatter hides internal notes and other customers’ tracking tokens',()=>{
+ const c={id:1,client_id:7,tracking_token:'secret',history:[{id:1,kind:'note',message:'private'},{id:2,kind:'status',message:'received'}],services:[{id:1,partner_id:4}],attachments:[{id:3}],feedback:[]};
  const customer=formatCase(c,{id:7,role:'client'});
  assert.equal(customer.history.length,1);assert.equal(customer.trackingToken,'secret');
- const partner=formatCase(c,{role:'partner',partner_id:4});
- assert.deepEqual(partner.services.map(s=>s.id),[1]);assert.equal(partner.attachments.length,0);assert.equal(partner.history.length,0);assert.equal(partner.trackingToken,undefined);
- assert.equal(formatCase(c,null).history.length,1);
+ assert.equal(formatCase(c,{id:8,role:'client'}).trackingToken,undefined);
+ assert.equal(formatCase(c,{id:2,role:'operator'}).history.length,2);
+ assert.equal(formatCase(c,null).history.length,1);assert.equal(formatCase(c,null).trackingToken,undefined);
 });
 test('file validation checks bytes, declared size and MIME signature',()=>{
  const bytes=Buffer.from('%PDF-1.7\ntest');

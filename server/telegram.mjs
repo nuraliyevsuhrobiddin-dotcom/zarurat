@@ -1,17 +1,23 @@
-import {telegramStatuses} from './telegram-status.mjs';
+import {telegramStatusLabel} from './telegram-status.mjs';
 import {timingSafeEqual} from 'node:crypto';
 import {HttpError} from './db.mjs';
 import {digest,token} from './security.mjs';
 import {telegramReady,telegram} from './providers.mjs';
 import {handleRegistrationMessage,registrationTelegramRequired} from './telegram-registration.mjs';
 import {handleContactRecovery} from './telegram-contact-recovery.mjs';
-import {handleTelegramCases,telegramCasesEnabled} from './telegram-cases.mjs';
+import {handleTelegramCases,handleChannelCheck,telegramCasesEnabled} from './telegram-cases.mjs';
 
 export async function handleTelegramWebhook(req,body,db,env){
  if(!telegramReady(env))throw new HttpError(503,'Telegram hali ulanmagan.');
  const supplied=Buffer.from(String(req.headers['x-telegram-bot-api-secret-token']||''));
  const expected=Buffer.from(env.TELEGRAM_WEBHOOK_SECRET);
  if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected))throw new HttpError(403,'Ruxsat yo‘q.');
+ const query=body.callback_query;
+ if(query){
+  const chat=query.message?.chat;
+  if(telegramCasesEnabled(env)&&query.data==='check_channel'&&typeof query.id==='string'&&chat?.type==='private'&&Number.isSafeInteger(chat.id)&&chat.id===query.from?.id)await handleChannelCheck(query,env);
+  return {ok:true};
+ }
  const m=body.message;
  if(!m||m.chat?.type!=='private'||!Number.isSafeInteger(m.chat.id)||m.chat.id!==m.from?.id)return {ok:true};
  if(/^\/(start|help)(?:@[A-Za-z0-9_]+)?$/.test(String(m.text||'').trim())){
@@ -50,7 +56,7 @@ export async function handleTelegramWebhook(req,body,db,env){
 
 export function notificationText(row){
  // Never send descriptions, phone numbers, notes, documents or tracking keys.
- return `ZARURIYAT\nMurojaat: ${row.caseNumber}\nHolat: ${telegramStatuses[row.caseStatus]||'Yangilandi'}\nTafsilotlarni shaxsiy kabinetingizda ko‘ring.`;
+ return `🔔 ZARURIYAT · murojaat holati\n\n🎫 ${row.caseNumber}\n${telegramStatusLabel(row.caseStatus)}`;
 }
 export async function drainNotifications(db,env){
  if(!telegramReady(env))return {enabled:false,sent:0};
@@ -59,7 +65,7 @@ export async function drainNotifications(db,env){
  let sent=0,failed=0;
  await Promise.all(rows.map(async row=>{
   try{
-   const result=await telegram('sendMessage',{chat_id:row.chatId,text:notificationText(row)+(telegramCasesEnabled(env)?`\nKuzatish: /track ${row.caseNumber}`:'')},env);
+   const result=await telegram('sendMessage',{chat_id:row.chatId,text:notificationText(row)+(telegramCasesEnabled(env)?'\n\nBatafsil: «📋 Murojaatlarim»':'\n\nTafsilotlar saytdagi shaxsiy kabinetingizda.')},env);
    const done=await db('rpc/zar_finish_notification',{method:'POST',body:{p_id:row.id,p_claim_token:claim,p_sent:true,p_provider_id:result.message_id,p_error:null}});
    if(done)sent++;
   }catch{

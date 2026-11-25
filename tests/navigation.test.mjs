@@ -68,7 +68,7 @@ test('customer checkout keeps the subscription tab selected',()=>{
 const overviewLinks=source.slice(source.indexOf('function overviewQuickLinks()'),source.indexOf('function personalOverview()'));
 const personalOverview=source.slice(source.indexOf('function personalOverview()'),source.indexOf('function responsibleName'));
 test('authenticated mobile tasks retain cabinet navigation on direct links and reloads',()=>{
- for(const role of ['client','partner','director']){
+ for(const role of ['client','director']){
   for(const hash of ['#request','#request?special=1','#checkout?tier=COMFORT','#track']){
    for(const from of [undefined,'#home','#cabinet/overview']){
     const html=runInNewContext(bottomNav+';mobileBottomNav();',{
@@ -83,7 +83,6 @@ test('authenticated mobile tasks retain cabinet navigation on direct links and r
     if(role==='client')assert.match(html,/href="#request"/);
     else assert.doesNotMatch(html,/href="#request"/);
     assert.doesNotMatch(html,/href="#services"/);
-    if(role==='partner')assert.doesNotMatch(html,/href="#cabinet\/packages"/);
     if(role==='director')assert.match(html,/href="#cabinet\/notifications"/);
    }
   }
@@ -104,12 +103,12 @@ test('cabinet menu sections are available on overview and keep role-scoped links
  assert.doesNotMatch(html,/data-action="toggle-script"/);
 });
 
-test('mobile overview leaves request and family details in their dedicated tabs',()=>{
+test('mobile overview shows the latest requests but leaves family details in their dedicated tab',()=>{
  const context={state:{user:{role:'client',name:'QA Client'},cases:[],packages:[{id:1}]},terminal:()=>false,
   pageHeading:()=>'',pageLabel:v=>v,tr:value=>value,newRequestButton:()=>'',stat:()=>'',icon:()=>'',overviewQuickLinks:()=>'',
   caseCards:()=>'<div>REQUEST CARDS</div>',packageCards:()=>'<div>FAMILY DETAILS</div>'};
  const mobile=runInNewContext(personalOverview+';personalOverview();',{...context,mobileViewport:()=>true});
- assert.doesNotMatch(mobile,/So.ggi murojaatlarim|REQUEST CARDS|FAMILY DETAILS|Oila paketingiz/);
+ assert.match(mobile,/REQUEST CARDS/);assert.doesNotMatch(mobile,/FAMILY DETAILS|Oila paketingiz/);
  const desktop=runInNewContext(personalOverview+';personalOverview();',{...context,mobileViewport:()=>false});
  assert.match(desktop,/REQUEST CARDS/);
  assert.match(desktop,/FAMILY DETAILS/);

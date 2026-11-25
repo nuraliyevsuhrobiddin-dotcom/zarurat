@@ -10,7 +10,9 @@ Brauzer bazaga to'g'ridan-to'g'ri ulanmaydi. Service-role kalit faqat serverda.
 
 - Parollar pgcrypto bcrypt bilan xeshlanadi; eski oddiy parollar migratsiyada xeshlanadi.
 - 12 soatlik sessiya: HttpOnly, SameSite=Lax, HTTPS'da Secure cookie; bazada token xeshi.
-- Mijoz faqat o'z murojaatini, hamkor o'z xizmatini ko'radi. Ichki qaydlar staff uchun.
+- Mijoz faqat o'z murojaatini ko'radi. Ichki qaydlar staff uchun.
+- Hamkorlar saytga kirmaydi. Koordinator yangi murojaat bo'yicha mijozga qo'ng'iroq qiladi,
+  kerakli hamkor bilan telefon orqali kelishadi va murojaatni o'zi yopadi.
 - Ochiq kuzatish raqam va kriptografik maxfiy kod bilan; kod URL'ga yozilmaydi.
 - SQL amallari murojaat, fayllar, tarix va xabar navbatini tranzaksiyada saqlaydi.
 - Paketning muddati, mijozga tegishliligi va limiti bazada tekshiriladi.
@@ -43,10 +45,22 @@ Mavjud baza uchun `migrations/003_intake_clarification.sql` kerak.
 `npm run qa` jonli bazadan ajratilgan brauzer sinov serverini ochadi.
 Paketlar barcha ekranlarda STANDARD, COMFORT va PREMIUM nomlari bilan ko‘rsatiladi.
 
+Mavjud bazada yangi server joylashtirilishidan **oldin** `migrations/016_phone_coordination.sql`
+bajarilishi kerak: u murojaatni hamkor xizmatisiz yopishga ruxsat beradi va hamkor
+sessiyalarini tugatadi. Aks holda koordinator murojaatni yopa olmaydi.
+
+Payme'dan tashqari to'lov: mijoz MChJ hisob raqamiga Click, Uzum, bank ilovasi orqali
+yoki markazda naqd/terminal orqali to'laydi; koordinator pul tushganini tekshirib,
+«Mijozlar» bo'limida obunani yoqadi. Xato yoqilgan, ishlatilmagan obunani faqat rahbar
+bekor qiladi. Buning uchun 016 dan keyin `migrations/017_manual_subscription_payment.sql`
+kerak. Rekvizitlar `public/site-content.js` dagi `bank` maydonlariga yoziladi; bo'sh
+bo'lsa mijozga rekvizitni koordinatordan so'rash aytiladi.
+
 ## Chegaralar
 
-Telegramda murojaat yuborish, kuzatish, baholash va bot menyusi:
-[sozlash va buyruqlar](docs/TELEGRAM-BOT.md). 010 migratsiya va
+Telegram botda har kim saytdagidek murojaat qoldiradi: bir marta raqamini yuboradi,
+Telegram uni tasdiqlaydi va mijoz hisobi ochiladi yoki ulanadi. Menyu, kuzatish va baholash:
+[sozlash va buyruqlar](docs/TELEGRAM-BOT.md). 010, 015, 018 migratsiyalar va
 `FEATURE_TELEGRAM_CASES=true` talab qilinadi.
 
 Telegramga oldindan bog‘lanmagan mijozlar parolni tiklash oynasidagi bot

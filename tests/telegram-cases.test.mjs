@@ -5,13 +5,15 @@ import {PGlite} from '@electric-sql/pglite';
 import {pgcrypto} from '@electric-sql/pglite/contrib/pgcrypto';
 import {testDatabase} from './helpers/database.mjs';
 import {handleTelegramWebhook} from '../server/telegram.mjs';
+import {requiredChannel} from '../server/telegram-cases.mjs';
 
 let pg,db,id=0;
-const env={FEATURE_TELEGRAM:'true',FEATURE_TELEGRAM_CASES:'true',TELEGRAM_BOT_TOKEN:'test',TELEGRAM_WEBHOOK_SECRET:'test',PUBLIC_ORIGIN:'https://example.test'};
+// The mandatory channel check has its own test; other flows run without it.
+const env={FEATURE_TELEGRAM:'true',FEATURE_TELEGRAM_CASES:'true',TELEGRAM_BOT_TOKEN:'test',TELEGRAM_WEBHOOK_SECRET:'test',PUBLIC_ORIGIN:'https://example.test',TELEGRAM_REQUIRED_CHANNEL:''};
 before(async()=>{
  pg=new PGlite({extensions:{pgcrypto}});
  await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
- for(const f of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/008_telegram_contact_recovery.sql','migrations/009_telegram_recovery_retries.sql','migrations/010_telegram_cases.sql','migrations/014_request_subscription_access.sql','migrations/015_telegram_request_access.sql'])await pg.exec(await readFile(f,'utf8'));
+ for(const f of ['supabase-schema.sql','migrations/002_accounts_notifications.sql','migrations/006_telegram_recovery.sql','migrations/008_telegram_contact_recovery.sql','migrations/009_telegram_recovery_retries.sql','migrations/010_telegram_cases.sql','migrations/014_request_subscription_access.sql','migrations/015_telegram_request_access.sql','migrations/018_telegram_contact_account.sql','migrations/018_telegram_contact_account.sql'])await pg.exec(await readFile(f,'utf8'));
  await pg.exec(`INSERT INTO users(login,name,phone,password_hash,role,telegram_chat_id) VALUES
  ('bot-client','Bot client','+998901111111','test','client',111),
  ('other-client','Other client','+998902222222','test','client',222),
@@ -84,12 +86,16 @@ test('webhook offers a working menu, category choices, validation, creation and 
  const hook=text=>handleTelegramWebhook({headers:{'x-telegram-bot-api-secret-token':'test'}},{message:{message_id:++id,chat:{id:111,type:'private'},from:{id:111},text}},db,env);
  try{
   await hook('/start');assert.ok(messages.at(-1).reply_markup.keyboard);
-  await hook('🌐 Shaxsiy kabinet');
-  assert.equal(messages.at(-1).reply_markup.inline_keyboard[1][0].url,env.PUBLIC_ORIGIN+'/#recovery');
+  assert.deepEqual(messages.at(-1).reply_markup.keyboard.map(row=>row.map(b=>b.text)),[['📝 Murojaat yuborish'],['📋 Murojaatlarim','🗂 Xizmatlar'],['💳 Tariflar','☎️ Aloqa']]);
+  await hook('☎️ Aloqa');assert.match(messages.at(-1).text,/\+998 55 406 77 55/);
+  assert.ok(messages.at(-1).reply_markup.inline_keyboard.flat().some(b=>b.url===env.PUBLIC_ORIGIN+'/#recovery'));
+  await hook('🌐 Shaxsiy kabinet');assert.match(messages.at(-1).text,/ZARURIYAT CENTER/);
+  await hook('💳 Tariflar');assert.match(messages.at(-1).text,/STANDARD — 99 000/);assert.match(messages.at(-1).text,/Click, Uzum/);
   await hook('/new');assert.ok(messages.at(-1).reply_markup.keyboard.some(row=>row[0].text==='❌ Bekor qilish'));
   const categoryButton=messages.at(-1).reply_markup.keyboard.flat().find(b=>b.text.startsWith('⚖️'));
-  await hook(categoryButton.text);assert.match(messages.at(-1).text,/10–3500/);
+  await hook(categoryButton.text);assert.match(messages.at(-1).text,/kamida 10 belgi/);
   await hook('Telegram orqali murojaat yuborish uchun sinov matni.');assert.match(messages.at(-1).text,/rozilik/);
+  assert.match(messages.at(-1).text,/Telegram orqali murojaat yuborish uchun sinov matni/);assert.match(messages.at(-1).text,/\+998901111111/);
   await hook('✅ Roziman, yuborish');assert.ok(messages.some(m=>m.text?.includes('Murojaatingiz qabul qilindi')));
   await hook('/cases');assert.match(messages.at(-1).text,/ZAR-/);
   const caseButton=messages.at(-1).reply_markup.keyboard[0][0].text;
@@ -100,15 +106,53 @@ test('webhook offers a working menu, category choices, validation, creation and 
  }finally{globalThis.fetch=original;}
 });
 
-test('unlinked bot menu points to the existing website recovery page',async()=>{
- const original=globalThis.fetch;let sent;
- globalThis.fetch=async(url,options)=>{sent=JSON.parse(options.body);return {ok:true,json:async()=>({ok:true,result:{message_id:1}})};};
+test('a new Telegram user confirms the phone once and sends a request like on the website',async()=>{
+ const original=globalThis.fetch,messages=[];
+ globalThis.fetch=async(url,options)=>{messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{message_id:1}})};};
+ const chat=444,send=extra=>handleTelegramWebhook({headers:{'x-telegram-bot-api-secret-token':'test'}},{message:{message_id:++id,chat:{id:chat,type:'private'},from:{id:chat,first_name:'Aziza'},...extra}},db,env);
  try{
-  await handleTelegramWebhook({headers:{'x-telegram-bot-api-secret-token':'test'}},{message:{message_id:++id,chat:{id:999,type:'private'},from:{id:999},text:'/start'}},db,env);
-  assert.equal(sent.reply_markup.inline_keyboard.at(-1)[0].url,env.PUBLIC_ORIGIN+'/#recovery');
+  await send({text:'/start'});
+  assert.match(messages.at(-1).text,/Asosiy menyu/);assert.ok(messages.at(-1).reply_markup.keyboard);
+  await send({text:'📝 Murojaat yuborish'});
+  assert.match(messages.at(-1).text,/Telefon raqamingizni tasdiqlang/);
+  assert.equal(messages.at(-1).reply_markup.keyboard[0][0].request_contact,true);
+  // A forwarded or foreign contact proves nothing.
+  await send({contact:{phone_number:'998905556677',user_id:999,first_name:'Other'}});
+  assert.match(messages.at(-1).text,/o‘zingizning raqamingizni/);
+  assert.equal((await pg.query('SELECT count(*)::int AS n FROM users WHERE telegram_chat_id=$1',[chat])).rows[0].n,0);
+  await send({contact:{phone_number:'998905556677',user_id:chat,first_name:'Aziza',last_name:'Karimova'}});
+  const user=(await pg.query('SELECT id,name,phone,login,role,phone_verified_at FROM users WHERE telegram_chat_id=$1',[chat])).rows[0];
+  assert.equal(user.name,'Aziza Karimova');assert.equal(user.phone,'+998905556677');assert.equal(user.login,'+998905556677');assert.equal(user.role,'client');assert.ok(user.phone_verified_at);
+  assert.ok(messages.some(m=>/hisobingiz ochildi/.test(m.text||'')));
+  assert.ok(messages.at(-1).reply_markup.keyboard.flat().some(b=>b.text.startsWith('⚖️')));
+  await send({text:'⚖️ Huquqiy maslahat'});
+  await send({text:'Aliment bo‘yicha maslahat kerak, ertaga qulay.'});
+  assert.match(messages.at(-1).text,/Aliment bo‘yicha maslahat kerak/);assert.match(messages.at(-1).text,/Aziza Karimova/);
+  await send({text:'✅ Roziman, yuborish'});
+  assert.ok(messages.some(m=>/Murojaatingiz qabul qilindi/.test(m.text||'')));
+  const created=(await pg.query('SELECT client_id,phone,category FROM cases WHERE client_id=$1',[user.id])).rows;
+  assert.equal(created.length,1);assert.equal(created[0].phone,'+998905556677');assert.equal(created[0].category,'legal');
+  // Sharing again is harmless and keeps the same account.
+  await send({contact:{phone_number:'+998905556677',user_id:chat,first_name:'Aziza'}});
+  assert.equal((await pg.query("SELECT count(*)::int AS n FROM users WHERE phone='+998905556677'")).rows[0].n,1);
  }finally{globalThis.fetch=original;}
 });
 
+test('phone confirmation links an existing client and refuses staff, taken and foreign numbers',async()=>{
+ await pg.exec(`INSERT INTO users(login,name,phone,password_hash,role) VALUES('+998907770000','Site client','+998907770000','x','client')`);
+ const link=(chat,phone)=>db('rpc/zar_telegram_contact_account',{method:'POST',body:{p_chat_id:chat,p_phone:phone,p_name:'Telegram'}});
+ assert.equal((await link(555,'998907770000')).state,'linked');
+ assert.equal((await pg.query("SELECT telegram_chat_id::int AS c FROM users WHERE phone='+998907770000'")).rows[0].c,555);
+ assert.equal((await pg.query("SELECT count(*)::int AS n FROM users WHERE phone='+998907770000'")).rows[0].n,1);
+ assert.equal((await link(556,'998907770000')).state,'other_chat');
+ assert.equal((await link(557,'998903333333')).state,'staff');
+ assert.equal((await pg.query("SELECT telegram_chat_id::int AS c FROM users WHERE phone='+998903333333'")).rows[0].c,333);
+ assert.equal((await link(558,'79161234567')).state,'foreign_phone');
+ assert.equal((await link(0,'998907770000')).state,'invalid');
+ await pg.exec("INSERT INTO users(login,name,phone,password_hash,role,blocked_at) VALUES('+998907771111','Blocked','+998907771111','x','client',now())");
+ assert.equal((await link(559,'998907771111')).state,'unavailable');
+ assert.equal((await pg.query('SELECT count(*)::int AS n FROM users WHERE telegram_chat_id IN (556,557,558,559)')).rows[0].n,0);
+});
 test('webhook retry restores the prompt after a Telegram delivery failure',async()=>{
  const original=globalThis.fetch,message_id=++id;let sent;
  const body={message:{message_id,chat:{id:111,type:'private'},from:{id:111},text:'/new'}};
@@ -149,4 +193,45 @@ test('request creation rate limit is enforced atomically',async()=>{
  }
  assert.equal((await action('submit')).state,'limited');
  assert.equal((await pg.query('SELECT count(*) AS n FROM cases WHERE client_id=1')).rows[0].n,5);
+});
+
+test('bot requires channel membership; the check button opens the menu and failures stay open',async()=>{
+ const channelEnv={...env,TELEGRAM_REQUIRED_CHANNEL:'https://t.me/zaruriyat_center_murojatlar'};
+ const original=globalThis.fetch,calls=[];let status='left',broken=false;
+ globalThis.fetch=async(url,options)=>{
+  const method=url.split('/').pop(),body=JSON.parse(options.body);calls.push({method,body});
+  if(method==='getChatMember'){
+   if(broken)return {ok:false,status:400,json:async()=>({ok:false,error_code:400,description:'member list is inaccessible'})};
+   return {ok:true,json:async()=>({ok:true,result:{status}})};
+  }
+  return {ok:true,json:async()=>({ok:true,result:{message_id:50}})};
+ };
+ const req={headers:{'x-telegram-bot-api-secret-token':'test'}};
+ const message=text=>handleTelegramWebhook(req,{message:{message_id:++id,chat:{id:111,type:'private'},from:{id:111},text}},db,channelEnv);
+ const check=(data='check_channel',chat=111)=>handleTelegramWebhook(req,{callback_query:{id:'cb'+(++id),data,from:{id:111},message:{message_id:50,chat:{id:chat,type:chat===111?'private':'group'}}}},db,channelEnv);
+ try{
+  const draftsBefore=(await pg.query('SELECT last_message_id FROM telegram_case_drafts WHERE chat_id=111')).rows[0].last_message_id;
+  await message('📝 Murojaat yuborish');
+  const prompt=calls.filter(c=>c.method==='sendMessage').at(-1).body;
+  assert.match(prompt.text,/kanaliga a’zo bo‘ling/);
+  assert.equal(prompt.reply_markup.inline_keyboard[0][0].url,'https://t.me/zaruriyat_center_murojatlar');
+  assert.equal(prompt.reply_markup.inline_keyboard[1][0].callback_data,'check_channel');
+  assert.equal(calls.find(c=>c.method==='getChatMember').body.chat_id,'@zaruriyat_center_murojatlar');
+  // Nothing reaches the request flow before joining.
+  assert.equal((await pg.query('SELECT last_message_id FROM telegram_case_drafts WHERE chat_id=111')).rows[0].last_message_id,draftsBefore);
+  await check();
+  const alert=calls.filter(c=>c.method==='answerCallbackQuery').at(-1).body;assert.equal(alert.show_alert,true);
+  assert.equal(calls.filter(c=>c.method==='sendMessage').at(-1).body,prompt);
+  status='member';
+  await check();
+  assert.ok(calls.some(c=>c.method==='editMessageText'&&/a’zo bo‘ldingiz/.test(c.body.text)));
+  assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/Asosiy menyu/);
+  await message('💳 Tariflar');assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/Oila obunasi/);
+  status='restricted';await message('/start');assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/kanaliga a’zo/);
+  broken=true;await message('/start');assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/Asosiy menyu/);
+  const count=calls.length;await check('other');await check('check_channel',-100);assert.equal(calls.length,count);
+ }finally{globalThis.fetch=original;}
+ assert.equal(requiredChannel({TELEGRAM_REQUIRED_CHANNEL:'@zaruriyat_center_murojatlar'}),'zaruriyat_center_murojatlar');
+ assert.equal(requiredChannel({}),'zaruriyat_center_murojatlar');
+ assert.equal(requiredChannel({TELEGRAM_REQUIRED_CHANNEL:''}),'');
 });

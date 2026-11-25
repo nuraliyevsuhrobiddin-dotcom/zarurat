@@ -1,18 +1,16 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {requestContact,resetWorkspace,coordinatorChoices,workspaceViewAllowed,partnerServiceCounts,serviceUpdatePayload} from '../public/workspace-roles.js';
+import {requestContact,resetWorkspace,coordinatorChoices,workspaceViewAllowed,teamGroups} from '../public/workspace-roles.js';
 
-test('service saves preserve an existing assignment when its field is disabled',()=>{
- assert.deepEqual(serviceUpdatePayload({role:'operator'},{status:'completed'}),{status:'completed'});
- assert.deepEqual(serviceUpdatePayload({role:'operator'},{status:'accepted',partnerId:'4'}),{status:'accepted',partnerId:4});
- assert.deepEqual(serviceUpdatePayload({role:'director'},{status:'pending',partnerId:''}),{status:'pending',partnerId:null});
- assert.deepEqual(serviceUpdatePayload({role:'partner'},{status:'accepted',partnerId:'5'}),{status:'accepted'});
+test('coordinator choices never include partner or customer accounts',()=>{
  assert.deepEqual(coordinatorChoices([{id:1,role:'operator'}],{coordinatorId:9,coordinatorRole:'partner'}),[{id:1,role:'operator'}]);
+ assert.deepEqual(coordinatorChoices([{id:3,role:'partner'},{id:4,role:'client'},{id:5,role:'operator'}],{}),[{id:5,role:'operator'}]);
+ assert.deepEqual(teamGroups.map(group=>group.role),['director','operator']);
 });
 
-test('workspace routes separate partner, coordinator and director sections',()=>{
- for(const role of ['client','partner','operator','director'])for(const view of ['overview','cases','menu','settings'])assert.equal(workspaceViewAllowed(role,view),true);
- for(const view of ['partners','clients','packages','notifications','team'])assert.equal(workspaceViewAllowed('partner',view),false);
+test('workspace routes separate coordinator and director sections; partners have no cabinet',()=>{
+ for(const role of ['client','operator','director'])for(const view of ['overview','cases','menu','settings'])assert.equal(workspaceViewAllowed(role,view),true);
+ for(const view of ['overview','cases','menu','settings','partners','clients','packages','notifications','team'])assert.equal(workspaceViewAllowed('partner',view),false);
  for(const view of ['partners','clients','packages','notifications'])assert.equal(workspaceViewAllowed('operator',view),true);
  assert.equal(workspaceViewAllowed('operator','team'),false);
  assert.equal(workspaceViewAllowed('director','team'),true);
@@ -20,13 +18,6 @@ test('workspace routes separate partner, coordinator and director sections',()=>
  assert.equal(workspaceViewAllowed('client','packages'),true);
  assert.equal(workspaceViewAllowed(null,'overview'),false);
  assert.equal(workspaceViewAllowed('partner','unknown'),false);
-});
-
-test('partner counters use own services even while the coordinator case is still open',()=>{
- const cases=[{status:'reviewing',services:[{status:'completed'},{status:'pending'},{status:'cancelled'}]},{status:'cancelled',services:[{status:'pending'}]}];
- assert.deepEqual(partnerServiceCounts(cases),{total:4,open:1,completed:1,cancelled:1});
- assert.deepEqual(partnerServiceCounts([]),{total:0,open:0,completed:0,cancelled:0});
- assert.deepEqual(coordinatorChoices([{id:3,role:'partner'},{id:4,role:'client'},{id:5,role:'operator'}],{}),[{id:5,role:'operator'}]);
 });
 
 test('new coordinator choices exclude blocked accounts while preserving an existing assignment',()=>{

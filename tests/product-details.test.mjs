@@ -5,6 +5,7 @@ import {runInNewContext} from 'node:vm';
 import {normalizeServiceSearch,serviceMatches,checkoutQuotaRows,createServiceSelection,verifiedContactDetails} from '../public/product-details.js';
 import {packageTiers} from '../public/package-tiers.js';
 import {tariffConditions,responseGuidance,paymentHelp,trackingHelp} from '../public/customer-guidance.js';
+import {cardPaymentNote,manualPaymentInfo} from '../public/manual-payment.js';
 
 test('service search finds task keywords in Latin and Cyrillic and treats punctuation consistently',()=>{
  assert.equal(normalizeServiceSearch('  ҚАРОВЧИ  '),'qarovchi');
@@ -90,7 +91,7 @@ test('rendered checkout includes consent-facing quota summary for each real tier
  for(const tier of packageTiers){
   for(const script of ['lat','cyr']){
    let html='';
-   const context={routeVersion:1,packageTiers,checkoutQuotaRows,tariffConditions,paymentHelp,state:{script,user:{role:'client',name:'QA Customer'}},
+   const context={routeVersion:1,packageTiers,checkoutQuotaRows,tariffConditions,paymentHelp,cardPaymentNote,manualPaymentInfo,siteContent:{phone:'+998 55 406 77 55',bank:{}},state:{script,user:{role:'client',name:'QA Customer'}},
     api:async()=>({enabled:true,mode:'test'}),paymentMoney:value=>String(value/100),pageLabel:(lat,cyr)=>script==='cyr'?cyr:lat,
     tr:value=>value,esc:value=>String(value),textareaField:()=>'',formError:'',
     modalOpen(title,subtitle,content){html=content;}};
@@ -101,6 +102,8 @@ test('rendered checkout includes consent-facing quota summary for each real tier
     assert.ok(html.includes(row.count?`${script==='cyr'?'Ойига':'Oyiga'} ${row.count}`:(script==='cyr'?'Пакетга кирмайди':'Paketga kirmaydi')));
    }
    assert.ok(html.indexOf('id="checkout-summary"')<html.indexOf('name="consent"'),'limits must appear before consent');
+   assert.ok(html.includes(script==='cyr'?'Карта билан тўлаш':'Karta bilan to‘lash'));assert.ok(html.includes('Click, Uzum'));
+   assert.ok(html.indexOf('card-payment-note')<html.indexOf('type="submit"'),'card note must stay above the payment button');
   }
  }
 });

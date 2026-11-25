@@ -9,21 +9,21 @@ export const categoryTitles = {
  repair:['Usta va ta’mirlash','Уста ва таъмирлаш'], other:['Kerakli xizmatni aniqlash','Керакли хизматни аниқлаш']
 };
 export const requestStatuses = {
- received:{title:['Yangi murojaat','Янги мурожаат'],help:['Murojaat kelib tushdi. Mijoz bilan hali gaplashilmagan.','Мурожаат келиб тушди. Мижоз билан ҳали гаплашилмаган.']},
- reviewing:{title:['Vaziyat aniqlanmoqda','Вазият аниқланмоқда'],help:['Mijoz bilan gaplashib, qanday yordam kerakligini aniqlayapsiz.','Мижоз билан гаплашиб, қандай ёрдам кераклигини аниқлаяпсиз.']},
- searching:{title:['Mutaxassis qidirilmoqda','Мутахассис қидирилмоқда'],help:['Mijozga mos mutaxassis yoki xizmat ko‘rsatuvchi izlanmoqda.','Мижозга мос мутахассис ёки хизмат кўрсатувчи изланмоқда.']},
- arranging:{title:['Narx va vaqt kelishilmoqda','Нарх ва вақт келишилмоқда'],help:['Mijoz va mutaxassis bilan narx, vaqt va ish hajmi kelishilmoqda.','Мижоз ва мутахассис билан нарх, вақт ва иш ҳажми келишилмоқда.']},
- contacted:{title:['Mijoz va mutaxassis bog‘landi','Мижоз ва мутахассис боғланди'],help:['Mijoz va mutaxassis o‘rtasida aloqa o‘rnatildi. Xizmat natijasi hali kutilmoqda.','Мижоз ва мутахассис ўртасида алоқа ўрнатилди. Хизмат натижаси ҳали кутилмоқда.']},
- completed:{title:['Bajarildi','Бажарилди'],help:['Barcha faol xizmatlar yakunlangan bo‘lsa tanlang. Murojaat yopiladi.','Барча фаол хизматлар якунланган бўлса танланг. Мурожаат ёпилади.']},
+ received:{title:['Yangi murojaat','Янги мурожаат'],help:['Murojaat kelib tushdi. Mijozga hali qo‘ng‘iroq qilinmagan.','Мурожаат келиб тушди. Мижозга ҳали қўнғироқ қилинмаган.']},
+ reviewing:{title:['Vaziyat aniqlanmoqda','Вазият аниқланмоқда'],help:['Mijoz bilan gaplashdingiz va qanday yordam kerakligini aniqlayapsiz.','Мижоз билан гаплашдингиз ва қандай ёрдам кераклигини аниқлаяпсиз.']},
+ searching:{title:['Mutaxassis qidirilmoqda','Мутахассис қидирилмоқда'],help:['Mijozga mos mutaxassis yoki hamkorga qo‘ng‘iroq qilib izlayapsiz.','Мижозга мос мутахассис ёки ҳамкорга қўнғироқ қилиб излаяпсиз.']},
+ arranging:{title:['Narx va vaqt kelishilmoqda','Нарх ва вақт келишилмоқда'],help:['Mijoz va mutaxassis bilan narx, vaqt va ish hajmi telefon orqali kelishilmoqda.','Мижоз ва мутахассис билан нарх, вақт ва иш ҳажми телефон орқали келишилмоқда.']},
+ contacted:{title:['Mijoz va mutaxassis bog‘landi','Мижоз ва мутахассис боғланди'],help:['Mijozni mutaxassis bilan bog‘lab qo‘ydingiz. Natijani mijozdan telefon orqali so‘rang.','Мижозни мутахассис билан боғлаб қўйдингиз. Натижани мижоздан телефон орқали сўранг.']},
+ completed:{title:['Bajarildi','Бажарилди'],help:['Mijozning masalasi hal bo‘lgach tanlang. Murojaat yopiladi.','Мижознинг масаласи ҳал бўлгач танланг. Мурожаат ёпилади.']},
  cancelled:{title:['Bekor qilindi','Бекор қилинди'],help:['Murojaat davom ettirilmaydi. Sababini ichki qaydga yozing.','Мурожаат давом эттирилмайди. Сабабини ички қайдга ёзинг.']}
 };
 export const sectionHelp = {
  overview:['Markazga tushgan murojaatlar va bajarilgan ishlarning umumiy hisobi.','Марказга тушган мурожаатлар ва бажарилган ишларнинг умумий ҳисоби.'],
- cases:['Mijozlarning arizalari. Mas’ul xodimni belgilang va ish holatini yangilang.','Мижозларнинг аризалари. Масъул ходимни белгиланг ва иш ҳолатини янгиланг.'],
- partners:['Xizmat ko‘rsatuvchi mutaxassis va tashkilotlar ro‘yxati.','Хизмат кўрсатувчи мутахассис ва ташкилотлар рўйхати.'],
+ cases:['Mijozlarning murojaatlari. Mijozga qo‘ng‘iroq qiling va natijani belgilang.','Мижозларнинг мурожаатлари. Мижозга қўнғироқ қилинг ва натижани белгиланг.'],
+ partners:['Koordinator telefon orqali bog‘lanadigan mutaxassis va tashkilotlar ro‘yxati.','Координатор телефон орқали боғланадиган мутахассис ва ташкилотлар рўйхати.'],
  clients:['Ro‘yxatdan o‘tgan mijozlar. Hisobsiz arizalar Murojaatlar bo‘limida.','Рўйхатдан ўтган мижозлар. Ҳисобсиз аризалар Мурожаатлар бўлимида.'],
  packages:['Faol obunalar, amal qilish muddati va maslahat limitlari.','Фаол обуналар, амал қилиш муддати ва маслаҳат лимитлари.'],
  notifications:['Yangi obunalar, murojaatlar va xabar yetkazish holati.','Янги обуналар, мурожаатлар ва хабар етказиш ҳолати.'],
- team:['Saytga kiradigan rahbar, koordinator va hamkor hisoblari. Hisobni faqat rahbar ochadi.','Сайтга кирадиган раҳбар, координатор ва ҳамкор ҳисоблари. Ҳисобни фақат раҳбар очади.']
+ team:['Saytga kiradigan rahbar va koordinator hisoblari. Hisobni faqat rahbar ochadi.','Сайтга кирадиган раҳбар ва координатор ҳисоблари. Ҳисобни фақат раҳбар очади.']
 };
 export const copyTranslations=Object.fromEntries([...Object.values(categoryTitles),...Object.values(requestStatuses).map(s=>s.title)]);

@@ -11,6 +11,7 @@ before(async()=>{
  const schema=await readFile('supabase-schema.sql','utf8');
  await db.exec(schema);
  await db.exec(await readFile('migrations/001_secure_server.sql','utf8'));
+ await db.exec(await readFile('migrations/016_phone_coordination.sql','utf8'));
  await db.exec(`INSERT INTO users(login,name,phone,password_hash,role) VALUES('boss','Rahbar','+998901111111',extensions.crypt('secure-password',extensions.gen_salt('bf',4)),'director');`);
 });
 after(async()=>{await db?.close();});
@@ -49,13 +50,13 @@ test('request creation is atomic, numbered and enqueues notification',async()=>{
 });
 
 test('case completion and cancellation enforce business rules',async()=>{
- await assert.rejects(db.query(`SELECT zar_update_case(1,'{"status":"completed"}',1)`));
- await assert.rejects(db.query(`SELECT zar_update_case(1,'{"status":"cancelled"}',1)`));
+ await assert.rejects(db.query(`SELECT zar_update_case(1,'{"status":"cancelled"}',1)`),/sababini/);
  await db.exec(`INSERT INTO partners(name,phone,address,category,hours,region) VALUES('Hamkor','+998905555555','Manzil','legal','09–18','Toshkent shahri');`);
  await db.query(`SELECT zar_add_service(1,'Maslahat',1,0,1)`);
- await assert.rejects(db.query(`SELECT zar_update_case(1,'{"status":"completed"}',1)`));
- await db.query(`SELECT zar_update_service(1,'completed',null,false,1)`);
+ // Coordinators close a request after arranging help by phone; an old open partner service closes with it.
  await db.query(`SELECT zar_update_case(1,'{"status":"completed"}',1)`);
+ assert.equal((await db.query('SELECT status FROM services WHERE case_id=1')).rows[0].status,'completed');
+ assert.equal((await db.query('SELECT zar_phone_coordination_ready() AS ready')).rows[0].ready,true);
  await assert.rejects(db.query(`SELECT zar_update_case(1,'{"status":"received"}',1)`));
 });
 

@@ -35,7 +35,8 @@ export async function currentUser(req, db, env=process.env) {
   const fields='id,name,phone,login,role,partner_id,password_hash'+(stage2(env)||telegramReady(env)?',blocked_at,phone_verified_at,telegram_chat_id':'');
   const users = await db('users', { query: query({ select: fields, id: `eq.${sessions[0].user_id}`, limit: 1 }) });
   const user=users?.[0];
-  if(!user||user.blocked_at)return null;
+  // Partner accounts are closed; their old sessions stop working.
+  if(!user||user.blocked_at||user.role==='partner')return null;
   const expected=sessionSignature(value,user.id,user.password_hash,env);
   let valid=timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(expected,'hex'));
   // A bounded migration window keeps existing public users signed in when the

@@ -1,5 +1,4 @@
 import {handleAdminEditing,partnerInput} from './admin-editing.mjs';
-import {partnerAccess} from './partner-access.mjs';
 import {enrichSubscriptions,rows,subscriptionCounts} from './subscription-summary.mjs';
 import {requireUnusedBenefit} from './benefit-usage.mjs';
 import { createDatabase, HttpError, query } from './db.mjs';
@@ -21,13 +20,12 @@ import { handlePaymeWebhook, handlePaymentRoute, paymeError, paymeReady } from '
 
 const staff = ['director', 'operator'];
 const terminal = status => ['completed', 'cancelled'].includes(status);
-const profile = u => ({ id: u.id, name: u.name, phone: u.phone, login: u.login, role: u.role, partnerId: u.partner_id, blocked: Boolean(u.blocked_at), phoneVerified: Boolean(u.phone_verified_at), telegramConnected: Boolean(u.telegram_chat_id) });
+const profile = u => ({ id: u.id, name: u.name, phone: u.phone, login: u.login, role: u.role, blocked: Boolean(u.blocked_at), phoneVerified: Boolean(u.phone_verified_at), telegramConnected: Boolean(u.telegram_chat_id) });
 const selectUsers = 'id,name,phone,login,role,partner_id';
 const caseSelect = '*,coordinator:users!cases_coordinator_id_fkey(name,role),services(*,partners(name)),history(*),attachments(id,name,type,size),feedback(*)';
 
 export function formatCase(c, user) {
   const isStaff = staff.includes(user?.role);
-  const isPartner = user?.role === 'partner';
   return {
     id: c.id, number: c.number, name: c.name, phone: c.phone, region: c.region,
     category: c.category, description: c.description, preferredTime: c.preferred_time,
@@ -35,15 +33,15 @@ export function formatCase(c, user) {
     coordinatorName: c.coordinator?.name || null, coordinatorRole: c.coordinator?.role || null, dueAt: c.due_at,
     createdAt: c.created_at, updatedAt: c.updated_at, clientId: c.client_id,
     ...(user?.role === 'client' && user.id === c.client_id ? { trackingToken: c.tracking_token } : {}),
-    services: (c.services || []).filter(s => !isPartner || (user.partner_id!=null && s.partner_id === user.partner_id)).map(s => ({
+    services: (c.services || []).map(s => ({
       id: s.id, caseId: s.case_id, title: s.title, partnerId: s.partner_id,
       partnerName: s.partners?.name, status: s.status, price: s.price
     })),
-    history: (c.history || []).filter(h => isStaff || (!isPartner && h.kind === 'status')).sort((a,b) => a.id-b.id).map(h => ({
+    history: (c.history || []).filter(h => isStaff || h.kind === 'status').sort((a,b) => a.id-b.id).map(h => ({
       id: h.id, kind: h.kind, message: h.message, actorName: h.actor_name, createdAt: h.created_at
     })),
-    attachments: isPartner ? [] : c.attachments || [],
-    feedback: isPartner ? null : (Array.isArray(c.feedback) ? c.feedback[0] : c.feedback) || null
+    attachments: c.attachments || [],
+    feedback: (Array.isArray(c.feedback) ? c.feedback[0] : c.feedback) || null
   };
 }
 
@@ -52,9 +50,7 @@ async function getCase(db, id, user, tracking) {
   if (!tracking && user?.role === 'client') filters.client_id = `eq.${user.id}`;
   const rows = await db('cases', { query: query(filters) });
   const c = rows?.[0];
-  if (!c || (user?.role === 'partner' && (user.partner_id==null || !(c.services || []).some(s => s.partner_id === user.partner_id)))) {
-    throw new HttpError(404, 'Murojaat topilmadi.');
-  }
+  if (!c) throw new HttpError(404, 'Murojaat topilmadi.');
   return c;
 }
 
@@ -121,6 +117,8 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         await rateLimit(req, db, 'login', login);
         const found = await rpc('zar_login', { p_login: login, p_password: password });
         if (!found) throw new HttpError(401, 'Login yoki parol noto‘g‘ri.');
+        // Partners do not use the site; coordinators reach them by phone.
+        if (found.role === 'partner') throw new HttpError(403, 'Hamkor kabineti yopilgan. Murojaatlar bo‘yicha koordinator siz bilan telefon orqali bog‘lanadi.');
         const value=await createSession(found,password,db,env);
         res.setHeader('Set-Cookie',sessionCookie(value,secure));
         result={user:profile(found)};
@@ -193,8 +191,6 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
       } else {
         requireRole(user);
         const caseMatch = path.match(/^\/cases\/(\d+)$/);
-        const addService = path.match(/^\/cases\/(\d+)\/services$/);
-        const serviceMatch = path.match(/^\/services\/(\d+)$/);
         const fileMatch = path.match(/^\/files\/(\d+)$/);
         const packageUse = path.match(/^\/packages\/(\d+)\/use$/);
 
@@ -221,41 +217,32 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           if (body.note) changes.note = text(body.note,'Izoh',1,2000);
           await rpc('zar_update_case', { p_id: integer(caseMatch[1],'ID'), p_changes: changes, p_actor_id: user.id });
           result = { case: formatCase(await getCase(db,Number(caseMatch[1]),user),user) };
-        } else if (addService && method === 'POST') {
-          requireRole(user,staff);
-          await rpc('zar_add_service', { p_case_id: integer(addService[1],'ID'), p_title: text(body.title,'Xizmat',2,200), p_partner_id: body.partnerId ? integer(body.partnerId,'Hamkor') : null, p_price: integer(body.price || 0,'Narx',0,1000000000), p_actor_id: user.id });
-          result = { case: formatCase(await getCase(db,Number(addService[1]),user),user) };
-        } else if (serviceMatch && method === 'PATCH') {
-          requireRole(user,[...staff,'partner']);
-          if(user.role==='partner'&&(user.partner_id==null||body.partnerId!==undefined))throw new HttpError(403,'Faqat o‘zingizga biriktirilgan xizmat holatini yangilashingiz mumkin.');
-          const id = await rpc('zar_update_service', { p_id: integer(serviceMatch[1],'ID'), p_status: choice(body.status,['pending','accepted','contacted','delivered','completed','cancelled'],'Holat'), p_partner_id: body.partnerId == null ? null : integer(body.partnerId,'Hamkor'), p_change_partner: body.partnerId !== undefined, p_actor_id: user.id });
-          result = { case: formatCase(await getCase(db,id,user),user) };
         } else if (path === '/partners') {
           requireRole(user,staff);
-          if (method === 'GET') result = { partners: await partnerAccess((await rows(db,'partners',{order:'id.desc'})).map(p=>({...p,contractStatus:p.contract_status})),db) };
+          if (method === 'GET') result = { partners: (await rows(db,'partners',{order:'id.desc'})).map(p=>({...p,contractStatus:p.contract_status})) };
           else if (method === 'POST') {
             const row = partnerInput(body);
             result = { partner: (await db('partners',{method:'POST',body:row}))[0] };
           }
         } else if (['/team','/clients','/users'].includes(path) && method === 'GET') {
           requireRole(user,path === '/users' ? ['director'] : staff);
-          const role = path === '/team' ? 'in.(operator,director)' : path === '/clients' ? 'eq.client' : 'in.(operator,director,partner)';
+          const role = path === '/clients' ? 'eq.client' : 'in.(operator,director)';
           const accountsEnabled=stage2(env)||telegramReady(env);
           result = { [path === '/clients' ? 'clients' : 'users']: (await rows(db,'users',{select:selectUsers+(accountsEnabled?',blocked_at,phone_verified_at,telegram_chat_id':''),role,order:'id.desc',...(path==='/team'&&accountsEnabled?{blocked_at:'is.null'}:{})})).map(profile) };
           if(path==='/clients'){const counts=await rpc('zar_client_counts',{}).catch(()=>null);result.clients=result.clients.map(client=>({...client,caseCount:counts?Number(counts[client.id]||0):null}));}
         } else if (path === '/users' && method === 'POST') {
           requireRole(user,['director']);
           const password = validatePassword(body.password);
-          const role = choice(body.role,['operator','partner'],'Rol');
-          result = { user: profile(await rpc('zar_create_user',{p_name:text(body.name,'Ism',2,100),p_phone:phone(body.phone),p_login:normalizeLogin(text(body.login,'Login',3,100)),p_password:password,p_role:role,p_partner_id:role==='partner'?integer(body.partnerId,'Hamkor'):null})) };
+          const role = choice(body.role ?? 'operator',['operator'],'Rol');
+          result = { user: profile(await rpc('zar_create_user',{p_name:text(body.name,'Ism',2,100),p_phone:phone(body.phone),p_login:normalizeLogin(text(body.login,'Login',3,100)),p_password:password,p_role:role,p_partner_id:null})) };
         } else if (/^\/users\/\d+\/password$/.test(path)&&method==='POST') {
           requireRole(user,['director']);
           await rateLimit(req,db,'admin-password',String(user.id));
           if(!await compare(validatePassword(body.currentPassword,1),user.passwordHash))throw new HttpError(401,'Joriy parol noto‘g‘ri.');
           const id=integer(path.split('/')[2],'Xodim');
-          const targets=await db('users',{query:query({select:'id,role',id:`eq.${id}`,role:'in.(operator,partner)',limit:1})});
+          const targets=await db('users',{query:query({select:'id,role',id:`eq.${id}`,role:'eq.operator',limit:1})});
           if(!targets.length)throw new HttpError(404,'Xodim topilmadi.');
-          await db('users',{method:'PATCH',query:query({id:`eq.${id}`,role:'in.(operator,partner)'}),body:{password_hash:await hashPassword(validatePassword(body.password))}});
+          await db('users',{method:'PATCH',query:query({id:`eq.${id}`,role:'eq.operator'}),body:{password_hash:await hashPassword(validatePassword(body.password))}});
           await db('sessions',{method:'DELETE',query:query({user_id:`eq.${id}`})});
           result={ok:true};
         } else if (path === '/packages' && method === 'GET') {
@@ -287,7 +274,6 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           const [stats,counts]=await Promise.all([rpc('zar_stats',{}),subscriptionCounts(db)]);
           result={stats:{...stats,...counts}};
         } else if (fileMatch && method === 'GET') {
-          if(user.role==='partner')throw new HttpError(403,'Faylga ruxsat yo‘q.');
           const files=await db('attachments',{query:query({select:'*',id:`eq.${integer(fileMatch[1],'Fayl')}`,limit:1})});
           const file=files?.[0];
           if(!file)throw new HttpError(404,'Fayl topilmadi.');
@@ -297,7 +283,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
       }
       if(result===undefined)throw new HttpError(404,'Bu bo‘lim topilmadi.');
       await enrichSubscriptions(result,user,db);
-      if(method!=='GET'&&telegramReady(env)&&(/^\/cases\//.test(path)||/^\/services\//.test(path)||path==='/requests')){
+      if(method!=='GET'&&telegramReady(env)&&(/^\/cases\//.test(path)||path==='/requests')){
         await drainNotifications(db,env).catch(error=>console.error(JSON.stringify({event:'notification_queue_failure',category:error.name})));
       }
       res.statusCode=200;res.end(method==='HEAD'?'':JSON.stringify(result));

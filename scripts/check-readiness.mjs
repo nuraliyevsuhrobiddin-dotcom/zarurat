@@ -35,6 +35,10 @@ if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
  }
  try{add('Migration 011: active coordinator assignment',await db('rpc/zar_assignment_ready',{method:'POST',body:{}})===true,'Apply migrations/011_active_coordinator_assignment.sql after existing migrations.');}
  catch{add('Migration 011: active coordinator assignment',false,'Apply migrations/011_active_coordinator_assignment.sql after existing migrations.');}
+ try{add('Migration 016: phone coordination',await db('rpc/zar_phone_coordination_ready',{method:'POST',body:{}})===true,'Apply migrations/016_phone_coordination.sql after 015.');}
+ catch{add('Migration 016: phone coordination',false,'Apply migrations/016_phone_coordination.sql after 015.');}
+ try{add('Migration 017: manual subscription payment',await db('rpc/zar_manual_payment_ready',{method:'POST',body:{}})===true,'Apply migrations/017_manual_subscription_payment.sql after 016.');}
+ catch{add('Migration 017: manual subscription payment',false,'Apply migrations/017_manual_subscription_payment.sql after 016.');}
  if(env.FEATURE_STAGE2==='true'||telegramReady(env)||telegramFeaturesRequested){
   for(const [table,fields] of [['users','blocked_at,phone_verified_at,telegram_chat_id'],['telegram_links','token_hash'],['otp_challenges','id']]){
    try{await db(table,{query:`select=${fields}&limit=0`});add(`Migration 002: ${table}`,true);}
@@ -54,6 +58,9 @@ if(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY){
   if(telegramCasesEnabled){
    try{await db('telegram_case_drafts',{query:'select=chat_id&limit=0'});add('Migration 010: Telegram requests',true);}
    catch{add('Migration 010: Telegram requests',false,'Apply migrations/010_telegram_cases.sql after 009.');}
+   // Chat 0 is rejected before any lookup or write, so this probe is read-only.
+   try{add('Migration 018: Telegram phone accounts',(await db('rpc/zar_telegram_contact_account',{method:'POST',body:{p_chat_id:0,p_phone:'',p_name:''}}))?.state==='invalid','Apply migrations/018_telegram_contact_account.sql after 017.');}
+   catch{add('Migration 018: Telegram phone accounts',false,'Apply migrations/018_telegram_contact_account.sql after 017.');}
   }
  }
  if(env.SUPABASE_ANON_KEY){

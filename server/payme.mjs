@@ -62,6 +62,23 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
     if (ready) ready = await db('rpc/zar_payment_ready',{method:'POST',body:{}}).then(value=>value===true).catch(()=>false);
     return {enabled:ready,mode:paymeMode(env)};
   }
+  // Payment received outside Payme (MChJ bank account via Click/Uzum/bank app, cash, terminal).
+  if (path === '/payments/manual' && method === 'POST') {
+    requireRole(user,['operator','director']);
+    if (body.confirm !== true) throw new HttpError(400,'Pul hisobga tushganini tekshirib, belgilang.');
+    const name=choice(body.tier,packageTiers.map(t=>t.name),'Tarif');
+    const tier=packageTiers.find(t=>t.name===name);
+    if (!Array.isArray(body.members) || body.members.length < 1 || body.members.length > tier.familyMembers) throw new HttpError(400,`Bu tarifda ${tier.familyMembers} nafargacha a’zo bo‘lishi mumkin.`);
+    const subscription=await db('rpc/zar_activate_manual_subscription',{method:'POST',body:{
+      p_client_id:integer(body.clientId,'Mijoz'),p_tier:tier.name,p_members:body.members.map(value=>text(value,'Oila a’zosi',2,100)),
+      p_method:choice(body.method,['bank','cash','terminal'],'To‘lov usuli'),p_reference:text(body.reference,'To‘lov hujjati',2,100),p_actor_id:user.id}});
+    return {subscription};
+  }
+  const manualCancel=path.match(/^\/payments\/manual\/([0-9a-f-]{36})\/cancel$/i);
+  if (manualCancel && method === 'POST') {
+    requireRole(user,['director']);
+    return {order:await db('rpc/zar_cancel_manual_subscription',{method:'POST',body:{p_order_id:manualCancel[1],p_actor_id:user.id}})};
+  }
   const subscriptionUse=path.match(/^\/payments\/subscriptions\/(\d+)\/(use|eligible)$/);
   if (path !== '/payments' && path !== '/payments/orders' && !subscriptionUse) return undefined;
   requireRole(user,['client','operator','director']);
@@ -87,7 +104,8 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
     // Keep existing cabinets working before the payment migration is installed.
     const ready=await db('rpc/zar_payment_ready',{method:'POST',body:{}}).then(value=>value===true).catch(()=>false);
     if (!ready) return {payments:[],subscriptions:[],migrationReady:false};
-    const filters={select:'id,client_id,tier,amount,members,mode,status,created_at,paid_at,starts_at,expires_at',order:'created_at.desc',limit:100};
+    // "*" keeps the list working before and after the manual-payment columns exist.
+    const filters={select:'*',order:'created_at.desc',limit:100};
     if (user.role === 'client') filters.client_id=`eq.${user.id}`;
     const [payments,subscriptions]=await Promise.all([
       db('payment_orders',{query:query(filters)}),
@@ -100,6 +118,7 @@ export async function handlePaymentRoute({path,method,user,body,req,db,env}) {
         payment.checkoutUrl=checkoutUrl(payment,env);
       }
     }
+    for(const payment of payments){delete payment.terms;if(user.role==='client')delete payment.confirmed_by;}
     const usage=subscriptions.length?await db('subscription_usage',{query:query({select:'subscription_id,kind',subscription_id:`in.(${subscriptions.map(s=>s.id).join(',')})`})}):[];
     for(const s of subscriptions)s.used=Object.fromEntries(['legal','psychology','business'].map(kind=>[kind,usage.filter(u=>u.subscription_id===s.id&&u.kind===kind).length]));
     return {payments,subscriptions,migrationReady:true};

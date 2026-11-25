@@ -1,8 +1,9 @@
 import {subscriptionSummary} from './subscription-summary.js?v=2';
 import {activeSubscription,displayDate} from './payment-state.js';
+import {paymentMethodLabel} from './manual-payment.js?v=1';
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const paymentMoney=amount=>String(Math.round(Number(amount)/100)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
-export function paymentPanel(data,script='lat',clients=[],staff=false){
+export function paymentPanel(data,script='lat',clients=[],staff=false,director=false){
  const label=(lat,cyr)=>script==='cyr'?cyr:lat;
  const subs=data?.subscriptions||[],orders=data?.payments||[];
  const statuses={pending:label('To‘lov kutilmoqda','Тўлов кутилмоқда'),reserved:label('Tasdiq kutilmoqda','Тасдиқ кутилмоқда'),paid:label('To‘langan','Тўланган'),cancelled:label('Bekor qilingan','Бекор қилинган'),expired:label('Muddati tugagan','Муддати тугаган')};
@@ -13,7 +14,7 @@ export function paymentPanel(data,script='lat',clients=[],staff=false){
    return `<a class="btn outline small" href="${escape(url.href)}">${label('To‘lovni davom ettirish','Тўловни давом эттириш')}</a>`;
   }catch{return '';}
  };
- const paymentRow=o=>`<article class="payment-row"><div><strong>${escape(o.tier)} · ${paymentMoney(o.amount)} ${label('so‘m','сўм')}</strong><p>${displayDate(o.created_at)}${staff?` · ${escape(clients.find(c=>String(c.id)===String(o.client_id))?.name||label('Mijoz','Мижоз'))}`:''}</p><details><summary>${label('To‘lov raqami','Тўлов рақами')} ${escape(String(o.id).slice(0,8))}</summary><code>${escape(o.id)}</code></details></div><div>${resume(o)}${test(o.mode)}<span class="pill ${o.status==='paid'?'green':o.status==='cancelled'?'red':'amber'}">${escape(statuses[o.status]||o.status)}</span></div></article>`;
+ const paymentRow=o=>`<article class="payment-row"><div><strong>${escape(o.tier)} · ${paymentMoney(o.amount)} ${label('so‘m','сўм')}</strong><p>${displayDate(o.created_at)}${staff?` · ${escape(clients.find(c=>String(c.id)===String(o.client_id))?.name||label('Mijoz','Мижоз'))}`:''} · ${escape(paymentMethodLabel(o.method,script))}${staff&&o.reference?` · ${escape(o.reference)}`:''}</p><details><summary>${label('To‘lov raqami','Тўлов рақами')} ${escape(String(o.id).slice(0,8))}</summary><code>${escape(o.id)}</code></details></div><div>${resume(o)}${test(o.mode)}<span class="pill ${o.status==='paid'?'green':o.status==='cancelled'?'red':'amber'}">${escape(statuses[o.status]||o.status)}</span>${director&&o.status==='paid'&&o.method&&o.method!=='payme'?`<button class="btn outline small" data-action="manual-payment-cancel" data-id="${escape(o.id)}">${label('Xato yoqilgan · bekor qilish','Хато ёқилган · бекор қилиш')}</button>`:''}</div></article>`;
  const subscriptionCard=s=>{
   const active=activeSubscription(s);
   const limits=[['legal','legalConsultations',label('Huquqiy','Ҳуқуқий')],['psychology','psychologicalConsultations',label('Psixolog','Психолог')],['business','businessConsultations',label('Tadbirkorlik','Тадбиркорлик')]];

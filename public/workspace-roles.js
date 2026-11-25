@@ -14,21 +14,10 @@ export function coordinatorChoices(team, current) {
 
 export function workspaceViewAllowed(role,view){
  const shared=['overview','cases','menu','settings'];
- if(shared.includes(view))return ['client','partner','operator','director'].includes(role);
+ if(shared.includes(view))return ['client','operator','director'].includes(role);
  if(view==='packages')return ['client','operator','director'].includes(role);
  if(['partners','clients','notifications'].includes(view))return ['operator','director'].includes(role);
  return view==='team'&&role==='director';
-}
-
-export function partnerServiceCounts(cases){
- const services=cases.flatMap(c=>c.services||[]);
- return {total:services.length,open:cases.reduce((n,c)=>n+(['completed','cancelled'].includes(c.status)?0:(c.services||[]).filter(s=>!['completed','cancelled'].includes(s.status)).length),0),completed:services.filter(s=>s.status==='completed').length,cancelled:services.filter(s=>s.status==='cancelled').length};
-}
-
-export function serviceUpdatePayload(user,data){
- const body={status:data.status};
- if(['operator','director'].includes(user?.role)&&data.partnerId!==undefined)body.partnerId=data.partnerId?Number(data.partnerId):null;
- return body;
 }
 
 export function resetWorkspace(state) {
@@ -41,6 +30,5 @@ export function resetWorkspace(state) {
 
 export const teamGroups = [
   { role: 'director', lat: 'Rahbarlar', cyr: 'Раҳбарлар' },
-  { role: 'operator', lat: 'Koordinatorlar', cyr: 'Координаторлар' },
-  { role: 'partner', lat: 'Hamkor hisoblari', cyr: 'Ҳамкор ҳисоблари' }
+  { role: 'operator', lat: 'Koordinatorlar', cyr: 'Координаторлар' }
 ];

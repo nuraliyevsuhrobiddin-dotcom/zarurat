@@ -28,6 +28,9 @@ if(process.env.QA_PAYME==='true')await pg.exec(await readFile('migrations/012_si
 await pg.exec(await readFile('migrations/013_partner_service_permissions.sql','utf8'));
 await pg.exec(await readFile('migrations/014_request_subscription_access.sql','utf8'));
 await pg.exec(await readFile('migrations/015_telegram_request_access.sql','utf8'));
+await pg.exec(await readFile('migrations/016_phone_coordination.sql','utf8'));
+await pg.exec(await readFile('migrations/017_manual_subscription_payment.sql','utf8'));
+await pg.exec(await readFile('migrations/018_telegram_contact_account.sql','utf8'));
 await pg.exec(`
  INSERT INTO partners(name,phone,address,category,hours,region,price,contract_status)
  VALUES('QA hamkor','+998901111115','QA Qarshi','legal','09:00-18:00','Qashqadaryo',0,'active');
@@ -46,6 +49,6 @@ if(process.env.QA_SUBSCRIPTIONS==='true'&&process.env.QA_PAYME==='true')await pg
  SELECT id,client_id,tier,mode,members,terms,now()-interval '1 day',now()+interval '29 days' FROM payment_orders;
 `);
 const server=createLocalServer(createHandler({db:testDatabase(pg),env}));
-server.listen(port,host,()=>console.log(`Isolated QA: ${env.PUBLIC_ORIGIN} (qa-director / qa-password-2026; other roles qa-operator, qa-client, qa-partner)`));
+server.listen(port,host,()=>console.log(`Isolated QA: ${env.PUBLIC_ORIGIN} (qa-director / qa-password-2026; other roles qa-operator, qa-client; qa-partner sign-in is refused)`));
 async function close(){server.close();await pg.close();process.exit(0);}
 process.on('SIGINT',close);process.on('SIGTERM',close);
