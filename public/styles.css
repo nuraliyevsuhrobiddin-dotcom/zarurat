@@ -638,12 +638,16 @@ dialog:has(.auth-dialog-wrap) { max-width: 440px; border-radius: 24px; overflow-
   box-shadow: var(--sh-xl);
   z-index: 100;
   max-width: calc(100% - 32px);
-  transition: transform .28s cubic-bezier(.22,1,.36,1);
+  transition: transform .28s cubic-bezier(.22,1,.36,1), opacity .2s ease, visibility .2s;
   pointer-events: none;
   white-space: normal;
   border: 1px solid rgba(255,255,255,.08);
-  inset: auto;
+  /* Popover defaults centre the element; only reset the sides not set above. */
+  top: auto;
+  right: auto;
   margin: 0;
+  opacity: 0;
+  visibility: hidden;
   width: max-content;
   box-sizing: border-box;
   overflow-wrap: anywhere;
@@ -651,7 +655,7 @@ dialog:has(.auth-dialog-wrap) { max-width: 440px; border-radius: 24px; overflow-
   max-height: calc(100dvh - 120px);
   overflow-y: auto;
 }
-#toast.visible { transform: translateX(-50%) translateY(0); }
+#toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
 
 #toast::backdrop { background:transparent; pointer-events:none; }
 
