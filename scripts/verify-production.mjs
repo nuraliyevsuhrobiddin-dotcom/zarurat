@@ -8,7 +8,7 @@ const base='https://www.zaruriyat.uz';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 // Git deploys serve LF line endings while a Windows checkout has CRLF; compare text without them.
 const comparable=(file,bytes)=>/\.(png|jpe?g|webp|ico)$/i.test(file)?Buffer.from(bytes):Buffer.from(Buffer.from(bytes).toString('utf8').replace(/\r\n/g,'\n'));
-const files=['index.html','app.js','api.js','auth-input.js','package-tiers.js','site-content.js','manual-payment.js','lead-source.js','service-content.js','ui-localization.js','styles.css','mobile-app.css','manifest.json','images/qarshi-center.jpg'];
+const files=['index.html','app.js','api.js','auth-input.js','package-tiers.js','site-content.js','manual-payment.js','lead-source.js','lead-capture.js','service-content.js','ui-localization.js','styles.css','mobile-app.css','manifest.json','images/qarshi-center.jpg'];
 const mismatches=[];
 await Promise.all(files.map(async file=>{
  const response=await fetch(`${base}/${file}`,{signal:AbortSignal.timeout(20000)});

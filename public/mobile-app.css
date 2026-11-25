@@ -1137,3 +1137,8 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .admin-notification-list h2,.team-account-list h3{font-size:16px;margin:0}
 .admin-notification-list .record-contact{display:block;margin:12px 0;min-height:44px;padding:10px;background:#f0f4fb;border-radius:10px;text-decoration:none}
 .password-target strong,.password-target p{overflow-wrap:anywhere}
+
+/* Privacy page: separate each section from the previous paragraph. */
+.legal-copy h3{margin:20px 0 6px;font-size:1.05rem}
+.legal-copy h3:first-child{margin-top:4px}
+.legal-copy p{margin:0;line-height:1.6}
