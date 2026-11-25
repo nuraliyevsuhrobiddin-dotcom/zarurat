@@ -48,8 +48,10 @@ export async function handleTelegramWebhook(req,body,db,env){
   return {ok:true};
  }
  if(/^\/start\b/.test(String(m.text||'')))await telegram('sendMessage',{chat_id:m.chat.id,text:'Bu havola yaroqsiz. Telegramni ulash uchun saytdagi Hisob sozlamalaridan Telegramni boglang.'},env);
- else if(await handleTelegramCases(m,db,env)){
-  if(m.text==='✅ Roziman, yuborish')await drainNotifications(db,env).catch(error=>console.error(JSON.stringify({event:'notification_queue_failure',category:error.name})));
+ else{
+  const handled=await handleTelegramCases(m,db,env);
+  // The bot has just confirmed this request in the chat; do not repeat it as a status message.
+  if(handled&&m.text==='✅ Roziman, yuborish')await drainNotifications(db,env,{confirmed:handled.created}).catch(error=>console.error(JSON.stringify({event:'notification_queue_failure',category:error.name})));
  }
  return {ok:true};
 }
@@ -58,13 +60,17 @@ export function notificationText(row){
  // Never send descriptions, phone numbers, notes, documents or tracking keys.
  return `🔔 ZARURIYAT · murojaat holati\n\n🎫 ${row.caseNumber}\n${telegramStatusLabel(row.caseStatus)}`;
 }
-export async function drainNotifications(db,env){
+export async function drainNotifications(db,env,{confirmed}={}){
  if(!telegramReady(env))return {enabled:false,sent:0};
  const claim=token();
  const rows=await db('rpc/zar_claim_notifications',{method:'POST',body:{p_claim_token:claim}});
  let sent=0,failed=0;
  await Promise.all(rows.map(async row=>{
   try{
+   if(confirmed&&row.event==='request.created'&&row.caseNumber===confirmed){
+    if(await db('rpc/zar_finish_notification',{method:'POST',body:{p_id:row.id,p_claim_token:claim,p_sent:true,p_provider_id:null,p_error:null}}))sent++;
+    return;
+   }
    const result=await telegram('sendMessage',{chat_id:row.chatId,text:notificationText(row)+(telegramCasesEnabled(env)?'\n\nBatafsil: «📋 Murojaatlarim»':'\n\nTafsilotlar saytdagi shaxsiy kabinetingizda.')},env);
    const done=await db('rpc/zar_finish_notification',{method:'POST',body:{p_id:row.id,p_claim_token:claim,p_sent:true,p_provider_id:result.message_id,p_error:null}});
    if(done)sent++;

@@ -4,7 +4,7 @@
   "description": "Qarshida oilangiz uchun kerakli xizmatlarni koordinator bilan tashkil qiling.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7f9fc",
+  "background_color": "#071b3b",
   "theme_color": "#071b3b",
   "orientation": "portrait-primary",
   "icons": [
@@ -15,10 +15,16 @@
       "purpose": "any"
     },
     {
-      "src": "/images/zaruriyat-logo-512.png",
+      "src": "/images/zaruriyat-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/images/zaruriyat-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

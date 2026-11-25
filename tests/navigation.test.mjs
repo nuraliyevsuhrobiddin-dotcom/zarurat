@@ -156,17 +156,19 @@ test('mobile Back uses the existing predecessor after refresh',()=>{
 
 test('initial session loading never renders the public landing page',async()=>{
  const init=source.slice(source.indexOf('async function init(){'),source.lastIndexOf('\ninit().then(()=>pollStaffNotifications());'));
- let resolveAuth,rendered=0;
+ let resolveAuth,rendered=0,splashHidden=0;
  const auth=new Promise(resolve=>{resolveAuth=resolve;});
- const context={navigationReady:true,state:{},app:{dataset:{}},api:path=>path==='/config'?Promise.resolve({categories:[]}):auth,route:()=> 'cases',landing(){assert.fail('Landing would flash before the requested page');},renderRoute(){rendered++;},toast(){}};
+ const context={navigationReady:true,state:{},app:{dataset:{}},api:path=>path==='/config'?Promise.resolve({categories:[]}):auth,route:()=> 'cases',landing(){assert.fail('Landing would flash before the requested page');},renderRoute(){rendered++;},toast(){},hideSplash(){splashHidden++;}};
  const pending=runInNewContext(init+';init();',context);
  await Promise.resolve();await Promise.resolve();
- assert.equal(rendered,0);
+ assert.equal(rendered,0);assert.equal(splashHidden,0);
  assert.equal(context.navigationReady,false);
  resolveAuth({user:{role:'client'}});
  await pending;
  assert.equal(context.navigationReady,true);
  assert.equal(rendered,1);
+ // The entry screen leaves only after the first page is on screen.
+ assert.equal(splashHidden,1);
 });
 
 const savedCase=source.slice(source.indexOf('async function refreshSavedCase('),source.indexOf('\nfunction toLocalInput('));

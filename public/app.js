@@ -94,7 +94,7 @@ const paths = {
  message:'M21 3H3v14h4v4l5-4h9V3ZM7 8h10M7 12h6', mic:'M9 4a3 3 0 0 1 6 0v8a3 3 0 0 1-6 0V4ZM5 10v2a7 7 0 0 0 14 0v-2M12 19v4M8 23h8', copy:'M8 8h13v13H8V8ZM16 8V3H3v13h5', download:'M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5', star:'m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6Z'
 };
 const icon = (name, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.heart}"/></svg>`;
-const brand = () => `<a href="#home" class="brand" aria-label="Zaruriyat bosh sahifasi"><img class="brand-mark brand-logo" src="/images/zaruriyat-logo-192.png" alt="" width="44" height="44"><span><span class="brand-name">ZARURIYAT</span><span class="brand-sub">${state.script==='cyr'?'Ҳар бир муаммога инсоний ечим.':'Har bir muammoga insoniy yechim.'}</span></span></a>`;
+const brand = () => `<a href="#home" class="brand" aria-label="Zaruriyat bosh sahifasi"><img class="brand-mark brand-logo" src="/images/zaruriyat-logo-96.webp" alt="" width="44" height="44"><span><span class="brand-name">ZARURIYAT</span><span class="brand-sub">${state.script==='cyr'?'Ҳар бир муаммога инсоний ечим.':'Har bir muammoga insoniy yechim.'}</span></span></a>`;
 const badge = (s, services = false) => `<span class="pill ${s === 'completed' ? 'green' : s === 'cancelled' ? 'red' : s === 'received' || s === 'pending' ? 'blue' : 'amber'}">${esc(tr((services ? serviceNames : statusNames)[s] || s))}</span>`;
 const options = (items, chosen = '', empty = '') => `${empty ? `<option value="">${esc(empty)}</option>` : ''}${items.map(i => { const v = typeof i === 'object' ? i.id : i; const n = typeof i === 'object' ? (i.name || i.id) : i; return `<option value="${esc(v)}" ${String(v) === String(chosen) ? 'selected' : ''}>${esc(items===state.partners||items===state.clients||items===state.team?n:tr(n))}</option>`; }).join('')}`;
 const statusOptions = (chosen, isService = false) => options(Object.entries(isService ? serviceNames : statusNames).map(([id, name]) => ({ id, name: tr(name) })), chosen);
@@ -327,7 +327,7 @@ function loginDialog(register=false) {
  const tab2=isCyr?'Рўйхатдан ўтиш':"Ro'yxatdan o'tish";
  const regHtml=`
   <div class="auth-brand-row">
-   <div class="auth-logo-icon"><img src="/images/zaruriyat-logo-192.png" alt="" width="68" height="68"></div>
+   <div class="auth-logo-icon"><img src="/images/zaruriyat-logo-160.webp" alt="" width="68" height="68"></div>
    <div>
     <div class="auth-logo-name">ZARURIYAT</div>
     <div class="auth-logo-sub">${register?pageLabel('Hisob yarating','Ҳисоб яратинг'):pageLabel('Hisobingizga kiring','Ҳисобингизга киринг')}</div>
@@ -590,7 +590,7 @@ function syncPresentationTitle(){
  document.title=`${title} · ZARURIYAT`;
 }
 function mobileBrandHeader(){
- return `<header class="mobile-brand-header"><a class="mobile-brand" href="#home" aria-label="ZARURIYAT"><img src="/images/zaruriyat-logo-192.png" alt="" width="38" height="38"><span>ZARURIYAT<small>${pageLabel('Insoniy yechim.','Инсоний ечим.')}</small></span></a><div class="mobile-header-end"><span class="mobile-location"><span></span>${pageLabel('Qarshi','Қарши')}</span></div></header>`;
+ return `<header class="mobile-brand-header"><a class="mobile-brand" href="#home" aria-label="ZARURIYAT"><img src="/images/zaruriyat-logo-96.webp" alt="" width="38" height="38"><span>ZARURIYAT<small>${pageLabel('Insoniy yechim.','Инсоний ечим.')}</small></span></a><div class="mobile-header-end"><span class="mobile-location"><span></span>${pageLabel('Qarshi','Қарши')}</span></div></header>`;
 }
 function mobilePageShell(title,content,{home=false,presentation=false}={}){
  app.dataset.page=presentation?'form':home?'home':location.hash.slice(1).split('?')[0]||'home';
@@ -692,7 +692,7 @@ function route(){const [prefix,view]=location.hash.slice(1).split('?')[0].split(
  const title=view==='menu'?pageLabel('Menyu','Меню'):activeItem[2];
   const navLinks=menu.map(([id,ico,text])=>`<a href="#cabinet/${id}" class="${view===id?'active':''}" title="${esc(staff()&&sectionHelp[id]?pageLabel(...sectionHelp[id]):text)}">${icon(ico)}<span>${esc(text)}</span></a>`).join('');
   const wsBottomBar=mobileBottomNav('cabinet');
-  app.innerHTML=`<div class="workspace ${view==='overview'?'workspace-overview':''}"><div class="workspace-backdrop" data-action="menu" aria-label="Menyuni yopish"></div><aside class="sidebar"><div class="sidebar-top">${brand()}</div><nav class="sidebar-nav" aria-label="${isCyr?'Кабинет навигацияси':'Kabinet navigatsiyasi'}"><span class="sidebar-label">${esc(tr(roleNames[state.user.role]))} ${isCyr?'кабинети':'kabineti'}</span><div class="side-nav">${navLinks}</div></nav><div class="sidebar-bottom"><button class="script-toggle" data-action="toggle-script" title="Alifboni o‘zgartirish" style="margin-bottom:12px;width:100%;text-align:center">${state.script==='cyr'?'O‘zb (Lotin)':'Ўзб (Кирилл)'}</button>${state.user.role==='client'?`<a href="#home">${icon('arrow')} ${isCyr?'Бош саҳифага қайтиш':'Bosh sahifaga qaytish'}</a>`:''}</div></aside><div class="workspace-main"><header class="workspace-top"><div class="workspace-top-brand"><img class="brand-mark brand-logo" src="/images/zaruriyat-logo-192.png" alt="" width="30" height="30"><span class="workspace-brand-title">${esc(tr(title))}</span></div><div class="account"><span class="account-avatar">${esc(state.user.name.slice(0,2).toUpperCase())}</span><div class="account-meta"><div class="account-name">${esc(state.user.name)}</div><div class="account-role">${esc(tr(roleNames[state.user.role]))}</div></div><button class="icon-btn" data-action="account-settings" aria-label="${tr('Hisob sozlamalari')}" title="${tr('Hisob sozlamalari')}">${icon('shield')}</button><button class="icon-btn" data-action="logout" aria-label="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}" title="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}">${icon('logout')}</button></div></header><main id="main" class="workspace-content"><div class="loading" role="status">${isCyr?'Маълумотлар юкланмоқда…':'Ma’lumotlar yuklanmoqda…'}</div></main>${wsBottomBar}</div></div>`;
+  app.innerHTML=`<div class="workspace ${view==='overview'?'workspace-overview':''}"><div class="workspace-backdrop" data-action="menu" aria-label="Menyuni yopish"></div><aside class="sidebar"><div class="sidebar-top">${brand()}</div><nav class="sidebar-nav" aria-label="${isCyr?'Кабинет навигацияси':'Kabinet navigatsiyasi'}"><span class="sidebar-label">${esc(tr(roleNames[state.user.role]))} ${isCyr?'кабинети':'kabineti'}</span><div class="side-nav">${navLinks}</div></nav><div class="sidebar-bottom"><button class="script-toggle" data-action="toggle-script" title="Alifboni o‘zgartirish" style="margin-bottom:12px;width:100%;text-align:center">${state.script==='cyr'?'O‘zb (Lotin)':'Ўзб (Кирилл)'}</button>${state.user.role==='client'?`<a href="#home">${icon('arrow')} ${isCyr?'Бош саҳифага қайтиш':'Bosh sahifaga qaytish'}</a>`:''}</div></aside><div class="workspace-main"><header class="workspace-top"><div class="workspace-top-brand"><img class="brand-mark brand-logo" src="/images/zaruriyat-logo-96.webp" alt="" width="30" height="30"><span class="workspace-brand-title">${esc(tr(title))}</span></div><div class="account"><span class="account-avatar">${esc(state.user.name.slice(0,2).toUpperCase())}</span><div class="account-meta"><div class="account-name">${esc(state.user.name)}</div><div class="account-role">${esc(tr(roleNames[state.user.role]))}</div></div><button class="icon-btn" data-action="account-settings" aria-label="${tr('Hisob sozlamalari')}" title="${tr('Hisob sozlamalari')}">${icon('shield')}</button><button class="icon-btn" data-action="logout" aria-label="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}" title="${isCyr?'Ҳисобдан чиқиш':'Hisobdan chiqish'}">${icon('logout')}</button></div></header><main id="main" class="workspace-content"><div class="loading" role="status">${isCyr?'Маълумотлар юкланмоқда…':'Ma’lumotlar yuklanmoqda…'}</div></main>${wsBottomBar}</div></div>`;
  }
 async function renderRoute() {
  presentationRefreshPending=false;
@@ -1266,6 +1266,13 @@ window.addEventListener('focus',()=>{void checkRequestIdentity();});
 window.addEventListener('zar-auth-expired',()=>{if(state.user){resetApiContext();state.user=null;resetWorkspace(state);location.hash='login';toast(pageLabel('Sessiya tugadi. Davom etish uchun qayta kiring.','Сессия тугади. Давом этиш учун қайта киринг.'));}});
 matchMedia('(max-width: 820px)').addEventListener('change',()=>{if(state.config)refreshPresentation();});
 // Mobile pages render in #main; no dialog promotion or DOM mutation observer is needed.
+// The entry screen in index.html fades out once the first page is on screen.
+function hideSplash(){
+ const splash=document.getElementById('splash');
+ if(!splash||splash.classList.contains('splash-done'))return;
+ splash.classList.add('splash-done');
+ setTimeout(()=>splash.remove(),600);
+}
 async function init(){
  navigationReady=false;
  try{
@@ -1275,8 +1282,8 @@ async function init(){
   try{const auth=await api('/auth/me');state.user=auth.user;state.backendConfigured=auth.configured!==false;}catch(error){state.user=null;authError=error;if(error.status===503)state.backendConfigured=false;}
   navigationReady=true;
   if(authError&&cabinetRequested){toast(authError.message);throw authError;}
-  else{if(state.user)app.dataset.page='';await renderRoute();}
- }catch(error){app.innerHTML=`<main class="public-error" id="main">${brand()}<h1 style="margin-top:30px">${tr("Hozir ulanish imkoni bo‘lmadi.")}</h1><p class="muted">${esc(tr(error.message))}</p><button class="btn" id="retry-init">${tr("Qayta urinib ko‘rish")}</button></main>`;$('#retry-init').addEventListener('click',init);}
+  else{if(state.user)app.dataset.page='';await renderRoute();hideSplash();}
+ }catch(error){app.innerHTML=`<main class="public-error" id="main">${brand()}<h1 style="margin-top:30px">${tr("Hozir ulanish imkoni bo‘lmadi.")}</h1><p class="muted">${esc(tr(error.message))}</p><button class="btn" id="retry-init">${tr("Qayta urinib ko‘rish")}</button></main>`;$('#retry-init').addEventListener('click',init);hideSplash();}
 }
 init().then(()=>pollStaffNotifications());
 window.setInterval(pollStaffNotifications,15000);

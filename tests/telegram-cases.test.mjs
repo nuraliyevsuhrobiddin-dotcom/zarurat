@@ -130,6 +130,9 @@ test('a new Telegram user confirms the phone once and sends a request like on th
   assert.match(messages.at(-1).text,/Aliment bo‘yicha maslahat kerak/);assert.match(messages.at(-1).text,/Aziza Karimova/);
   await send({text:'✅ Roziman, yuborish'});
   assert.ok(messages.some(m=>/Murojaatingiz qabul qilindi/.test(m.text||'')));
+  // The bot confirmation is not followed by a duplicate status notification.
+  assert.ok(!messages.some(m=>/murojaat holati/.test(m.text||'')));
+  assert.equal((await pg.query("SELECT count(*)::int AS n FROM notifications n JOIN cases c ON c.id=n.case_id WHERE c.phone='+998905556677' AND n.event='request.created' AND n.status='sent'")).rows[0].n,1);
   const created=(await pg.query('SELECT client_id,phone,category FROM cases WHERE client_id=$1',[user.id])).rows;
   assert.equal(created.length,1);assert.equal(created[0].phone,'+998905556677');assert.equal(created[0].category,'legal');
   // Sharing again is harmless and keeps the same account.
