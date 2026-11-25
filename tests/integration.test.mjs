@@ -66,6 +66,9 @@ test('registration, request, tracking, file access, ownership, coordinator, comp
  const {number,id}=created.data.case, secret=created.data.trackingToken;
  const track=await call('/track',{method:'POST',body:{number,token:secret}});
  assert.equal(track.statusCode,200);assert.equal(track.data.case.attachments.length,1);
+ // Short key: 8 easy-to-read symbols, accepted in lower case and with a dash.
+ assert.match(secret,/^[2-9A-HJKMNP-Z]{8}$/);
+ assert.equal((await call('/track',{method:'POST',body:{number,token:` ${secret.slice(0,4).toLowerCase()}-${secret.slice(4)} `}})).statusCode,200);
  const fileId=track.data.case.attachments[0].id;
  assert.equal((await call(`/files/${fileId}`)).statusCode,401);
  const file=await call(`/files/${fileId}`,{method:'POST',body:{number,token:secret}});

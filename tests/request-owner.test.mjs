@@ -9,7 +9,7 @@ const submitCode=source.slice(source.indexOf('async function submitRequest('),so
 function setup(owner,users,{race=false}={}){
  const form={isConnected:true},posts=[],changes=[],successes=[];
  let reads=0,cleared=0;
- const context={requestFormOwners:new WeakMap([[form,{owner}]]),routeVersion:1,pageLabel:lat=>lat,
+ const context={requestFormOwners:new WeakMap([[form,{owner}]]),routeVersion:1,pageLabel:lat=>lat,staff:()=>false,readLeadSource:()=>null,
   api:async(path,body)=>{if(path==='/auth/me')return {user:users[Math.min(reads++,users.length-1)]};posts.push(body);if(race)throw Object.assign(new Error('Changed'),{code:'account_changed'});return {case:{id:1}};},
   requestAccountChanged:async user=>changes.push(user),rememberRequestDraft:()=>null,
   completeRequestDraft:()=>cleared++,successDialog:result=>successes.push(result)};

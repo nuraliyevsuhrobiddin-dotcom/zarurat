@@ -107,7 +107,7 @@ test('rejected submission keeps entered fields and consent while showing the sub
   requestFormOwners:new WeakMap([[form,{owner:'guest'}]]),pageLabel:lat=>lat,
   api:async path=>{if(path==='/auth/me')return {user:null};throw Object.assign(new Error('Subscribe'),{status:402,code:'subscription_required'});},
   completeRequestDraft:()=>assert.fail('Rejected drafts must not be cleared'),successDialog:()=>assert.fail('Rejected requests cannot show success'),
-  requestAccessNotice,getRegistrationFlow:()=>({sync(){}}),presentationRefreshPending:false};
+  requestAccessNotice,getRegistrationFlow:()=>({sync(){}}),presentationRefreshPending:false,staff:()=>false,readLeadSource:()=>null};
  const helpers=source.slice(source.indexOf('async function submitRequest('),source.indexOf('\nfunction restartSubmittedRequestLink('));
  runInNewContext(helpers+'\n'+listener,context);await submitHandler({target:form,preventDefault(){}});
  assert.deepEqual(form.values,before);assert.equal(saved,2);assert.match(box.innerHTML,/STANDARD/);assert.equal(button.disabled,false);assert.equal(form.dataset.saving,undefined);

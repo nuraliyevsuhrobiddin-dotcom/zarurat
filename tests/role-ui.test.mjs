@@ -60,3 +60,9 @@ test('closed requests and customers get no coordinator controls',()=>{
  assert.match(client.html,/CLIENT VIEW/);assert.doesNotMatch(client.html,/case-update-form|INTERNAL TIMELINE|tel:\+998905555555/);
  assert.match(client.subtitle,/Murojaatingiz holati/);
 });
+test('coordinator sees where the request came from, customers never do',()=>{
+ const history=[{id:1,kind:'source',message:'Manba: instagram / cpc / noyabr'}];
+ assert.match(render('operator',{history}).html,/Qayerdan keldi<\/dt><dd>instagram \/ cpc \/ noyabr<\/dd>/);
+ assert.doesNotMatch(render('operator').html,/Qayerdan keldi/);
+ assert.doesNotMatch(render('client',{history}).html,/Qayerdan keldi|instagram/);
+});

@@ -4,6 +4,7 @@ import {publicConfig} from '../public/supabase-api.js';
 import {siteContent} from '../public/site-content.js';
 import {packageTiers} from '../public/package-tiers.js';
 import {normalizePhone} from '../public/auth-input.js';
+import {shortenTrackingKey} from './tracking-key.mjs';
 
 // Requests through the bot are on by default; FEATURE_TELEGRAM_CASES=false turns them off.
 export const telegramCasesEnabled=env=>env.FEATURE_TELEGRAM_CASES!=='false';
@@ -46,6 +47,7 @@ const texts={
  menu:'🏠 ZARURIYAT · Asosiy menyu\n\nAssalomu alaykum! Qarshida oilangiz uchun kerakli mutaxassisni topib beramiz.\n\n📝 Murojaat yuborish — muammoingizni yozing, koordinator sizga qo‘ng‘iroq qiladi\n📋 Murojaatlarim — holatini kuzatish\n🗂 Xizmatlar — yordam yo‘nalishlari\n💳 Tariflar — oila obunasi narxlari\n☎️ Aloqa — telefon va manzil\n\nPastdagi menyudan tanlang 👇',
  phone:'📱 Telefon raqamingizni tasdiqlang\n\nMurojaat yuborish uchun bir marta raqamingizni yuboring — pastdagi «📱 Raqamni yuborish» tugmasini bosing.\n\n• Raqamni Telegram o‘zi tasdiqlaydi, kod kerak emas.\n• Shu raqam bilan ZARURIYAT hisobingiz ochiladi yoki mavjud hisobingiz ulanadi.\n• Koordinator aynan shu raqamga qo‘ng‘iroq qiladi.',
  category:`📝 Yangi murojaat\n${steps(0)}\n\nQaysi yo‘nalishda yordam kerak?\nPastdagi tugmalardan birini tanlang 👇\n\nBilmasangiz — «📌 Kerakli xizmatni aniqlash» ni tanlang.`,
+ staff:'👋 Siz ZARURIYAT xodimi sifatida ulangansiz.\n\nYangi murojaat kelishi bilan shu yerga xabar keladi. Uni ochish uchun xabardagi «📂 Murojaatni ochish» tugmasini bosing — mijoz telefoni va matni kabinetda.\n\nXabarlarni to‘xtatish: /stop',
  description:`✍️ Vaziyatingizni yozing\n${steps(1)}\n\nMuammoingizni bitta xabarda qisqacha yozing (kamida 10 belgi).\nMasalan: «Aliment bo‘yicha maslahat kerak, ertaga tushdan keyin qulay».\n\n🎙 Ovozli xabar va rasm qabul qilinmaydi — iltimos, matn bilan yozing.`
 };
 
@@ -120,6 +122,9 @@ export async function handleTelegramCases(m,db,env){
   }
   result=await caseAction(action,value);
   if(result?.state==='unlinked'){
+   // Coordinators link Telegram to receive new-request alerts, not to send requests.
+   const [owner]=await db('users',{query:new URLSearchParams({select:'role',telegram_chat_id:`eq.${m.chat.id}`,limit:'1'}).toString()}).catch(()=>[]);
+   if(['operator','director'].includes(owner?.role)){await send(texts.staff,{remove_keyboard:true});return true;}
    // Guests can read the menu; anything personal starts with phone confirmation.
    if(['menu','cancel'].includes(action))await send(texts.menu);
    else await send(texts.phone,phoneRequest);
@@ -133,7 +138,7 @@ export async function handleTelegramCases(m,db,env){
  else if(state==='category')await send(texts.category,categoryMenu);
  else if(state==='description')await send(texts.description,cancel);
  else if(state==='confirm')await send(`📨 Murojaatni tekshiring\n${steps(2)}\n\n🗂 Yo‘nalish: ${categoryName(result.category)}\n✍️ Vaziyat: ${result.description||'—'}\n👤 Ism: ${result.name||'—'}\n📞 Telefon: ${result.phone||'—'}\n\nYuborish orqali murojaatni ko‘rib chiqish, siz bilan bog‘lanish va zarur ma’lumotlarni xizmat ko‘rsatuvchiga berish uchun shaxsiy ma’lumotlaringiz qayta ishlanishiga rozilik bildirasiz.\n\nHammasi to‘g‘rimi?`,keyboard([[B.submit],[B.cancel,B.home]]));
- else if(state==='created'){await send(`✅ Murojaatingiz qabul qilindi!\n\n🎫 ${result.case.number}\n${statusLabel(result.case.status)}\n\n📞 Koordinator tez orada sizga qo‘ng‘iroq qiladi — telefoningiz yoqiq tursin.\n🔔 Holat o‘zgarsa, shu yerga xabar keladi.`,caseMenu([result.case]));return {created:result.case.number};}
+ else if(state==='created'){await shortenTrackingKey(db,result.case.id);await send(`✅ Murojaatingiz qabul qilindi!\n\n🎫 ${result.case.number}\n${statusLabel(result.case.status)}\n\n📞 Koordinator tez orada sizga qo‘ng‘iroq qiladi — telefoningiz yoqiq tursin.\n🔔 Holat o‘zgarsa, shu yerga xabar keladi.`,caseMenu([result.case]));return {created:result.case.number,caseId:result.case.id};}
  else if(state==='list')await send(result.cases.length?'📋 Mening murojaatlarim\n\n'+result.cases.map(c=>`🎫 ${c.number}\n${statusLabel(c.status)}`).join('\n\n')+'\n\nBatafsil ko‘rish uchun pastdagi raqamni bosing 👇':'📭 Hozircha murojaatlaringiz yo‘q.\n\n«📝 Murojaat yuborish» tugmasi orqali boshlang.',result.cases.length?caseMenu(result.cases):menu);
  else if(state==='case')await send(`🎫 ${result.case.number}\n\n${statusLabel(result.case.status)}\n\nTafsilotlar va jarayon tarixi shaxsiy kabinetda: ${origin}/#cabinet/cases`+(result.case.status==='completed'?'\n\n⭐ Xizmatni baholang: pastdagi 1–5 ball tugmasini tanlang.':''),result.case.status==='completed'?keyboard([...pairs([1,2,3,4,5].map(n=>`⭐ ${n} ball · ${result.case.number}`)),[B.cases,B.home]]):caseMenu([result.case]));
  else if(state==='rated')await send('⭐ Bahoyingiz saqlandi. Fikringiz uchun rahmat!');

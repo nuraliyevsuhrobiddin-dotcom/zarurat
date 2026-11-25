@@ -63,6 +63,27 @@ Birinchi murojaat bepul; keyingisi uchun faol obuna kerak (saytdagi qoida bilan 
 - Raqam boshqa Telegramga ulangan, xodimga tegishli, bloklangan yoki +998 emas — ulanmaydi,
   mijozga sababi va markaz telefoni aytiladi.
 
+## Koordinatorlarga yangi murojaat xabari
+
+Har bir yangi murojaat (saytdan yoki botdan) Telegram'ni bog‘lagan barcha faol
+koordinator va rahbarlarga darhol yuboriladi: murojaat raqami, xizmat, mijozning ismi,
+qayerdan kelgani va «📂 Murojaatni ochish» tugmasi. Telefon raqami va murojaat matni
+xabarga yozilmaydi — ular kabinetda.
+
+Yoqish: koordinator saytda **Profil → Telegram → Telegramni bog‘lash** ni bosadi va
+botda «Start» ni bosadi. Xodim botga `/start` yozsa, xodim sifatida ulangani aytiladi.
+To‘xtatish: botga `/stop`.
+
+## Reklama havolalari va lid manbasi
+
+- Sayt uchun: `https://www.zaruriyat.uz/?utm_source=instagram&utm_medium=cpc&utm_campaign=noyabr`
+  — manba qurilmada 30 kun saqlanadi, ro‘yxatdan o‘tgandan keyingi murojaatga ham yoziladi.
+  `fbclid`/`gclid` bo‘lsa, manba `facebook`/`google` deb olinadi.
+- Bot uchun: `https://t.me/ZaruriyatLoginBot?start=instagram` — asosiy menyuni ochadi,
+  manba «Telegram bot» deb yoziladi.
+- Manba murojaat tarixida (faqat xodimlar ko‘radi) va murojaatning «Qayerdan keldi»
+  qatorida ko‘rinadi: reklama manbasi, «Sayt», «Telegram bot» yoki «Koordinator».
+
 ## Boshqa buyruqlar
 
 `/start` (asosiy menyu), `/new`, `/cases`, `/services`, `/tariffs`, `/contact`, `/cancel`,

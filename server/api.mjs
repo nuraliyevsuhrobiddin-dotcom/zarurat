@@ -1,6 +1,8 @@
 import {handleAdminEditing,partnerInput} from './admin-editing.mjs';
 import {enrichSubscriptions,rows,subscriptionCounts} from './subscription-summary.mjs';
 import {requireUnusedBenefit} from './benefit-usage.mjs';
+import {leadSource,recordLeadSource,alertStaffNewRequest} from './staff-alerts.mjs';
+import {normalizeTrackingKey,shortenTrackingKey} from './tracking-key.mjs';
 import { createDatabase, HttpError, query } from './db.mjs';
 import { digest, sessionCookie, currentUser, createSession, hashPassword, requireRole, validateOrigin, rateLimit } from './security.mjs';
 import { compare } from 'bcryptjs';
@@ -57,7 +59,7 @@ async function getCase(db, id, user, tracking) {
 async function trackingCase(db, body) {
   const number = text(body.number, 'Murojaat raqami', 10, 30).toUpperCase();
   if (!/^ZAR-\d{6,}$/.test(number)) fail('Murojaat raqami noto‘g‘ri.');
-  const trackingToken = text(body.token, 'Maxfiy kod', 8, 128);
+  const trackingToken = normalizeTrackingKey(text(body.token, 'Maxfiy kod', 8, 160));
   const rows = await db('cases', { query: query({ select: 'id', number: `eq.${number}`, tracking_token: `eq.${trackingToken}`, limit: 1 }) });
   if (!rows?.length) throw new HttpError(404, 'Murojaat raqami yoki maxfiy kod noto‘g‘ri.');
   return getCase(db, rows[0].id, null, true);
@@ -172,6 +174,12 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         const input = requestInput(body);
         result = await rpc('zar_submit_request', { p_input: input, p_user_id: user?.role === 'client' ? user.id : null, p_actor_id: staff.includes(user?.role)?user.id:null });
         if(result?.subscriptionRequired)throw new HttpError(402,'Bu raqam uchun bepul murojaat ishlatilgan. Davom etish uchun hisobingizga kiring va faol obunani tanlang.','subscription_required');
+        // Follow-up steps never fail a request that is already saved.
+        const caseId=result?.case?.id,isClient=user.role==='client';
+        if(result?.trackingToken)result.trackingToken=await shortenTrackingKey(db,caseId,result.trackingToken);
+        const source=isClient?(leadSource(body.source)||'Sayt'):'Koordinator';
+        await recordLeadSource(db,caseId,source,isClient?'Sayt':user.name).catch(error=>console.error(JSON.stringify({event:'lead_source_failure',category:error.name})));
+        if(isClient)await alertStaffNewRequest(db,env,{id:caseId,source}).catch(error=>console.error(JSON.stringify({event:'staff_alert_failure',category:error.name})));
       } else if (path === '/track' && method === 'POST') {
         await rateLimit(req, db, 'track');
         result = { case: formatCase(await trackingCase(db, body), null) };

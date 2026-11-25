@@ -85,3 +85,16 @@ test('coordinators keep the partner phone directory without account details',asy
  for(const p of response.data.partners){for(const key of ['accountStatus','login','password_hash','users'])assert.equal(key in p,false,key);}
  assert.equal((await call('/partners','client')).statusCode,403);
 });
+
+test('website requests keep their ad source for staff only; coordinator intake is marked as such',async()=>{
+ const body={name:'Ad client',phone:'+998903334455',region:'Qashqadaryo',category:'legal',description:'Reklamadan kelgan murojaat matni',consent:true,source:{source:'Instagram',medium:'cpc',campaign:'noyabr'}};
+ const sent=await call('/requests','client',body,'POST');
+ assert.equal(sent.statusCode,200);
+ const id=sent.data.case.id;
+ assert.deepEqual((await pg.query("SELECT message FROM history WHERE case_id=$1 AND kind='source'",[id])).rows.map(r=>r.message),['Manba: instagram / cpc / noyabr']);
+ assert.ok((await call('/cases/'+id,'operator')).data.case.history.some(h=>h.kind==='source'));
+ assert.ok(!(await call('/cases/'+id,'client')).data.case.history.some(h=>h.kind==='source'));
+ const intake=await call('/requests','operator',{...body,phone:'+998903334466',source:{source:'forged'}},'POST');
+ assert.equal(intake.statusCode,200);
+ assert.deepEqual((await pg.query("SELECT message FROM history WHERE case_id=$1 AND kind='source'",[intake.data.case.id])).rows.map(r=>r.message),['Manba: Koordinator']);
+});

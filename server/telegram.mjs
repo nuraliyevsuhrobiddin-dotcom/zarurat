@@ -6,16 +6,18 @@ import {telegramReady,telegram} from './providers.mjs';
 import {handleRegistrationMessage,registrationTelegramRequired} from './telegram-registration.mjs';
 import {handleContactRecovery} from './telegram-contact-recovery.mjs';
 import {handleTelegramCases,handleChannelCheck,telegramCasesEnabled} from './telegram-cases.mjs';
+import {recordLeadSource,alertStaffNewRequest} from './staff-alerts.mjs';
+import {query} from './db.mjs';
 
 export async function handleTelegramWebhook(req,body,db,env){
  if(!telegramReady(env))throw new HttpError(503,'Telegram hali ulanmagan.');
  const supplied=Buffer.from(String(req.headers['x-telegram-bot-api-secret-token']||''));
  const expected=Buffer.from(env.TELEGRAM_WEBHOOK_SECRET);
  if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected))throw new HttpError(403,'Ruxsat yo‘q.');
- const query=body.callback_query;
- if(query){
-  const chat=query.message?.chat;
-  if(telegramCasesEnabled(env)&&query.data==='check_channel'&&typeof query.id==='string'&&chat?.type==='private'&&Number.isSafeInteger(chat.id)&&chat.id===query.from?.id)await handleChannelCheck(query,env);
+ const callback=body.callback_query;
+ if(callback){
+  const chat=callback.message?.chat;
+  if(telegramCasesEnabled(env)&&callback.data==='check_channel'&&typeof callback.id==='string'&&chat?.type==='private'&&Number.isSafeInteger(chat.id)&&chat.id===callback.from?.id)await handleChannelCheck(callback,env);
   return {ok:true};
  }
  const m=body.message;
@@ -47,11 +49,23 @@ export async function handleTelegramWebhook(req,body,db,env){
   }else await telegram('sendMessage',{chat_id:m.chat.id,text:'Bog‘lash havolasi eskirgan yoki ishlatilgan. Saytdagi Hisob sozlamalari → Telegramni bog‘lash orqali yangi havola oling.'},env);
   return {ok:true};
  }
- if(/^\/start\b/.test(String(m.text||'')))await telegram('sendMessage',{chat_id:m.chat.id,text:'Bu havola yaroqsiz. Telegramni ulash uchun saytdagi Hisob sozlamalaridan Telegramni boglang.'},env);
+ // Ad links such as t.me/bot?start=instagram open the menu instead of an error.
+ if(/^\/start\b/.test(String(m.text||''))&&telegramCasesEnabled(env))await handleTelegramCases({...m,text:'/menu'},db,env);
+ else if(/^\/start\b/.test(String(m.text||'')))await telegram('sendMessage',{chat_id:m.chat.id,text:'Bu havola yaroqsiz. Telegramni ulash uchun saytdagi Hisob sozlamalaridan Telegramni boglang.'},env);
  else{
   const handled=await handleTelegramCases(m,db,env);
   // The bot has just confirmed this request in the chat; do not repeat it as a status message.
   if(handled&&m.text==='✅ Roziman, yuborish')await drainNotifications(db,env,{confirmed:handled.created}).catch(error=>console.error(JSON.stringify({event:'notification_queue_failure',category:error.name})));
+  // A repeated tap returns the same request; only its first confirmation alerts staff.
+  if(handled?.caseId){
+   try{
+    const known=await db('history',{query:query({select:'id',case_id:`eq.${handled.caseId}`,kind:'eq.source',limit:1})});
+    if(!known.length){
+     await recordLeadSource(db,handled.caseId,'Telegram bot','Telegram bot');
+     await alertStaffNewRequest(db,env,{id:handled.caseId,source:'Telegram bot'});
+    }
+   }catch(error){console.error(JSON.stringify({event:'staff_alert_failure',category:error.name}));}
+  }
  }
  return {ok:true};
 }

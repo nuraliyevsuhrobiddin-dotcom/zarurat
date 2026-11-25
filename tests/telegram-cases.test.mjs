@@ -238,3 +238,31 @@ test('bot requires channel membership; the check button opens the menu and failu
  assert.equal(requiredChannel({}),'zaruriyat_center_murojatlar');
  assert.equal(requiredChannel({TELEGRAM_REQUIRED_CHANNEL:''}),'');
 });
+
+test('a bot request alerts linked staff once, records its source and ad links open the menu',async()=>{
+ const original=globalThis.fetch,messages=[];
+ globalThis.fetch=async(url,options)=>{messages.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,result:{message_id:1}})};};
+ const send=(chat,extra)=>handleTelegramWebhook({headers:{'x-telegram-bot-api-secret-token':'test'}},{message:{message_id:++id,chat:{id:chat,type:'private'},from:{id:chat,first_name:'Nodira'},...extra}},db,env);
+ const alerts=()=>messages.filter(m=>m.chat_id===333&&/Yangi murojaat/.test(m.text||''));
+ try{
+  await send(666,{text:'/start instagram_noyabr'});
+  assert.match(messages.at(-1).text,/Asosiy menyu/);assert.doesNotMatch(messages.at(-1).text,/yaroqsiz/);
+  await send(666,{contact:{phone_number:'998906660066',user_id:666,first_name:'Nodira'}});
+  await send(666,{text:'🩺 Shifokorga yo‘naltirish'});
+  await send(666,{text:'Kardiolog ko‘rigiga yozilish kerak, iltimos.'});
+  await send(666,{text:'✅ Roziman, yuborish'});
+  assert.equal(alerts().length,1);
+  const alert=alerts()[0];
+  assert.match(alert.text,/Shifokorga yo‘naltirish/);assert.match(alert.text,/Manba: Telegram bot/);assert.doesNotMatch(alert.text,/998906660066|Kardiolog/);
+  const caseId=Number(alert.reply_markup.inline_keyboard[0][0].url.match(/id=(\d+)$/)[1]);
+  assert.deepEqual((await pg.query("SELECT message FROM history WHERE case_id=$1 AND kind='source'",[caseId])).rows.map(r=>r.message),['Manba: Telegram bot']);
+  // The key shown in the cabinet is the same short one as on the website.
+  assert.match((await pg.query('SELECT tracking_token FROM cases WHERE id=$1',[caseId])).rows[0].tracking_token,/^[2-9A-HJKMNP-Z]{8}$/);
+  // A second tap returns the same request without another alert.
+  await send(666,{text:'✅ Roziman, yuborish'});
+  assert.equal(alerts().length,1);
+  // Staff who linked Telegram get alert guidance instead of the client menu.
+  await send(333,{text:'/start'});
+  assert.match(messages.at(-1).text,/xodimi sifatida ulangansiz/);
+ }finally{globalThis.fetch=original;}
+});
