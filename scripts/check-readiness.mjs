@@ -8,7 +8,7 @@ const add=(name,ok,detail='')=>checks.push({name,ok,detail});
 const env=process.env;
 // The legacy flag is ignored: direct account registration does not require Telegram.
 const telegramRegistrationRequired=false;
-const telegramCasesEnabled=env.FEATURE_TELEGRAM_CASES==='true';
+const telegramCasesEnabled=env.FEATURE_TELEGRAM_CASES!=='false'&&env.FEATURE_TELEGRAM==='true';
 const telegramFeaturesRequested=env.FEATURE_TELEGRAM==='true'||telegramRegistrationRequired||telegramCasesEnabled;
 if(telegramFeaturesRequested&&!telegramReady(env))add('Telegram feature configuration',false,'Set FEATURE_TELEGRAM=true, TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET.');
 const backupConfigured=Boolean(env.BACKUP_ENCRYPTION_KEY||env.CRON_SECRET);

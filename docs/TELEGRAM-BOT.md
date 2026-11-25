@@ -10,8 +10,9 @@ Rahbar va koordinatorlar ishni saytdagi kabinetda bajaradi.
 1. Supabase SQL Editor’da 006–009 migratsiyalar mavjudligini tekshiring, keyin
    `010_telegram_cases.sql`, `015_telegram_request_access.sql` va
    `018_telegram_contact_account.sql` ni bajaring.
-2. Server muhitida `FEATURE_TELEGRAM=true`, `FEATURE_TELEGRAM_CASES=true`,
-   `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` va HTTPS `PUBLIC_ORIGIN` ni sozlang.
+2. Server muhitida `FEATURE_TELEGRAM=true`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`
+   va HTTPS `PUBLIC_ORIGIN` ni sozlang. Bot murojaatlari sukut bo‘yicha yoqiq;
+   `FEATURE_TELEGRAM_CASES=false` ularni o‘chiradi.
 3. Yangilangan kodni deploy qiling.
 4. Webhook va buyruqlar menyusini yangilang:
    `node --env-file-if-exists=.env scripts/configure-telegram.mjs`.

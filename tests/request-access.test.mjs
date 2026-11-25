@@ -31,24 +31,24 @@ async function submit(phone,role,extra={}){
 }
 const count=async()=>Number((await pg.query('SELECT count(*) AS n FROM cases')).rows[0].n);
 test('one free request per normalized phone survives reload, formatting and forged identity fields',async()=>{
- assert.equal((await submit('+998 90 900 00 01')).statusCode,200);const before=await count();
+ assert.equal((await submit('+998 90 900 00 01','other')).statusCode,200);const before=await count();
  for(const phone of ['909000001','998909000001','+998 (90) 900-00-01']){
-  const r=await submit(phone,null,{p_actor_id:1,role:'director',subscription:true});assert.equal(r.statusCode,402);assert.equal(r.data.code,'subscription_required');
+  const r=await submit(phone,'other',{p_actor_id:1,role:'director',subscription:true});assert.equal(r.statusCode,402);assert.equal(r.data.code,'subscription_required');
   assert.equal(r.data.case,undefined);assert.equal(r.data.trackingToken,undefined);
  }
  assert.equal(await count(),before);
- assert.equal((await submit('+998909000002')).statusCode,200);
+ assert.equal((await submit('+998909000002','other')).statusCode,200);
 });
 test('simultaneous free submissions produce one case; failed creation does not consume the free request',async()=>{
- const results=await Promise.all([submit('+998909000003'),submit('909000003')]);
+ const results=await Promise.all([submit('+998909000003','other'),submit('909000003','other')]);
  assert.deepEqual(results.map(r=>r.statusCode).sort(),[200,402]);
  const before=await count();
  await assert.rejects(db('rpc/zar_submit_request',{method:'POST',body:{p_input:{...input('+998909000004'),attachments:[{name:'broken',type:'application/pdf',size:'invalid-number',data:''}]},p_user_id:null}}));
- assert.equal(await count(),before);assert.equal((await submit('+998909000004')).statusCode,200);
+ assert.equal(await count(),before);assert.equal((await submit('+998909000004','other')).statusCode,200);
 });
 test('legacy formatted phone records count as the first request',async()=>{
  await db('rpc/zar_create_request',{method:'POST',body:{p_input:input('90 900 00 05'),p_user_id:null}});
- assert.equal((await submit('+998909000005')).statusCode,402);
+ assert.equal((await submit('+998909000005','other')).statusCode,402);
 });
 test('only an owned current live subscription unlocks subsequent and family requests',async()=>{
  assert.equal((await submit('+998901111112','client')).statusCode,200);
@@ -62,7 +62,8 @@ test('only an owned current live subscription unlocks subsequent and family requ
  assert.equal((await submit('+998901111112','client')).statusCode,200);
  // The benefit belongs to the authenticated account, not anyone who types that phone.
  assert.equal((await submit('+998901111112','other',{clientId:2})).statusCode,402);
- assert.equal((await submit('+998901111112')).statusCode,402);
+ // Guests cannot send requests at all; they register first.
+ assert.equal((await submit('+998901111112')).statusCode,401);
  assert.equal((await submit('+998909000001','client')).statusCode,200);
  await pg.exec("UPDATE family_subscriptions SET expires_at=now()-interval '1 second'");
  assert.equal((await submit('+998901111112','client')).statusCode,402);

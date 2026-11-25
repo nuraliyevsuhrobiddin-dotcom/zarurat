@@ -36,17 +36,16 @@ test('ordinary registration needs no Telegram and cannot create an admin account
  assert.ok(!calls.some(([resource])=>resource.includes('telegram')));
 });
 
-test('a guest can submit a request without registering',async()=>{
- let input;
- const db=async(resource,options)=>{
-  if(resource==='rpc/zar_rate_limit')return true;
-  if(resource==='rpc/zar_submit_request'){input=options.body;return {number:'ZAR-123456',token:'guest-tracking-token'};}
+test('a guest must register or sign in before sending a request',async()=>{
+ let submitted=false,limited=false;
+ const db=async(resource)=>{
+  if(resource==='rpc/zar_rate_limit'){limited=true;return true;}
+  if(resource==='rpc/zar_submit_request'){submitted=true;return {number:'ZAR-123456',token:'guest-tracking-token'};}
   return [];
  };
  const result=await request('/requests',{method:'POST',headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json'},body:{name:'Guest client',phone:'+998901234567',region:"Toshkent shahri",category:'other',description:'Oilaviy masala haqida maslahat kerak.',consent:true},db});
- assert.equal(result.statusCode,200);
- assert.equal(input.p_user_id,null);
- assert.equal(result.data.number,'ZAR-123456');
+ assert.equal(result.statusCode,401);assert.match(result.data.error,/ro‘yxatdan o‘ting/);
+ assert.equal(submitted,false);assert.equal(limited,false);
 });
 
 test('request owner check blocks changed cookies before any submission or rate limit mutation',async()=>{
@@ -66,11 +65,11 @@ test('request owner check blocks changed cookies before any submission or rate l
  }
  const loggedOut=await request('/requests',{method:'POST',body:{...body,requestOwner:'user:7'},headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json'},db});
  assert.equal(loggedOut.statusCode,409);assert.equal(submissions,0);assert.equal(limits,0);
- for(const [owner,session] of [['user:7',cookie],['guest',undefined]]){
+ for(const [owner,session,status] of [['user:7',cookie,200],['guest',undefined,401]]){
   const res=await request('/requests',{method:'POST',body:{...body,requestOwner:owner},headers:{origin:env.PUBLIC_ORIGIN,'content-type':'application/json',...(session?{cookie:session}:{})},db});
-  assert.equal(res.statusCode,200);
+  assert.equal(res.statusCode,status);
  }
- assert.equal(submissions,2);
+ assert.equal(submissions,1);
 });
 test('Vercel rewritten route resolves the same session endpoint',async()=>{
  const res=await request('/index?route=auth/me');

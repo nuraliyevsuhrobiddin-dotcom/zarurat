@@ -60,8 +60,9 @@ bo'lsa mijozga rekvizitni koordinatordan so'rash aytiladi.
 
 Telegram botda har kim saytdagidek murojaat qoldiradi: bir marta raqamini yuboradi,
 Telegram uni tasdiqlaydi va mijoz hisobi ochiladi yoki ulanadi. Menyu, kuzatish va baholash:
-[sozlash va buyruqlar](docs/TELEGRAM-BOT.md). 010, 015, 018 migratsiyalar va
-`FEATURE_TELEGRAM_CASES=true` talab qilinadi.
+[sozlash va buyruqlar](docs/TELEGRAM-BOT.md). 010, 015, 018 migratsiyalar talab qilinadi; bot murojaatlari sukut bo‘yicha yoqiq
+(`FEATURE_TELEGRAM_CASES=false` o‘chiradi). Saytda murojaat yuborish uchun hisob kerak:
+kirmagan foydalanuvchi ro‘yxatdan o‘tishga yo‘naltiriladi va keyin formaga qaytadi.
 
 Telegramga oldindan bog‘lanmagan mijozlar parolni tiklash oynasidagi bot
 havolasidan o‘tib, o‘z kontaktini ulashishi mumkin. Buning uchun

@@ -166,6 +166,8 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         if(Object.hasOwn(body,'requestOwner')&&body.requestOwner!==owner){
           throw new HttpError(409,'Hisob o‘zgardi. Ma’lumotlarni tekshirib, yangi murojaat oching.','account_changed');
         }
+        // Requests come from an account (website or Telegram), so the coordinator knows who to call.
+        if (!user) throw new HttpError(401,'Murojaat yuborish uchun ro‘yxatdan o‘ting yoki hisobingizga kiring.');
         await rateLimit(req, db, 'request');
         const input = requestInput(body);
         result = await rpc('zar_submit_request', { p_input: input, p_user_id: user?.role === 'client' ? user.id : null, p_actor_id: staff.includes(user?.role)?user.id:null });

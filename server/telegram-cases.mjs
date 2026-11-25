@@ -5,7 +5,8 @@ import {siteContent} from '../public/site-content.js';
 import {packageTiers} from '../public/package-tiers.js';
 import {normalizePhone} from '../public/auth-input.js';
 
-export const telegramCasesEnabled=env=>env.FEATURE_TELEGRAM_CASES==='true';
+// Requests through the bot are on by default; FEATURE_TELEGRAM_CASES=false turns them off.
+export const telegramCasesEnabled=env=>env.FEATURE_TELEGRAM_CASES!=='false';
 
 // Mandatory channel membership before the bot menu, request flow and contacts.
 export const requiredChannel=env=>String(env.TELEGRAM_REQUIRED_CHANNEL??siteContent.telegramChannel??'').trim().replace(/^(https?:\/\/)?t\.me\//i,'').replace(/^@/,'').replace(/[/?#].*$/,'');

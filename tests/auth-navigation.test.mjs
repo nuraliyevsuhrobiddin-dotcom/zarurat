@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { authDestination, checkoutReturn, checkoutAuthLink } from '../public/auth-navigation.js';
+import { authDestination, checkoutReturn, checkoutAuthLink, requestReturn, requestAuthLink } from '../public/auth-navigation.js';
 
 test('login and registration resume the selected checkout, including after switching tabs', () => {
   for (const tier of ['STANDARD', 'COMFORT', 'PREMIUM']) {
@@ -19,4 +19,18 @@ test('authentication never redirects to external URLs or arbitrary private route
     assert.equal(authDestination(`#login?${new URLSearchParams({ return: target })}`, 'client'), 'cabinet/overview');
   }
   assert.equal(authDestination('#register', 'client'), 'cabinet/overview');
+});
+
+test('a guest who opens the request form registers first and then returns to the same form', () => {
+  const link = requestAuthLink('register', 'request?category=legal&package=COMFORT&special=1');
+  assert.ok(link.startsWith('#register?'));
+  assert.equal(authDestination(link, 'client'), 'request?category=legal&package=COMFORT&special=1');
+  const switched = `#login?${new URLSearchParams({ return: requestReturn(link) })}`;
+  assert.equal(authDestination(switched, 'client'), 'request?category=legal&package=COMFORT&special=1');
+  assert.equal(authDestination(requestAuthLink('login'), 'client'), 'request');
+  assert.equal(authDestination(link, 'operator'), 'cabinet/overview');
+  // Unknown parameters and foreign targets are dropped.
+  assert.equal(requestReturn(`#register?${new URLSearchParams({ return: 'request?category=LEGAL&package=GOLD&next=//evil' })}`), 'request');
+  assert.equal(requestReturn(`#register?${new URLSearchParams({ return: 'requests/../cabinet/team' })}`), '');
+  assert.equal(requestAuthLink('register', 'https://evil.example'), '#register?return=request');
 });

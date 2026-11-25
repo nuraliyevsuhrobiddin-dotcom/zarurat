@@ -113,7 +113,7 @@ test('registration, request, tracking, file access, ownership, coordinator, comp
 test('coordinator clarifies the short request, clears a deadline and preserves audited history',async()=>{
  const boss=await call('/auth/login',{method:'POST',body:{login:'boss',password:'secure-password'}});
  const cookie=boss.headers['Set-Cookie'].split(';')[0];
- const created=await call('/requests',{method:'POST',body:{name:'Qarshi mijoz',phone:'55 406 77 55',region:'Qashqadaryo',category:'other',description:'Qaysi yordam kerakligini aniqlash',consent:true}});
+ const created=await call('/requests',{method:'POST',cookie,body:{name:'Qarshi mijoz',phone:'55 406 77 55',region:'Qashqadaryo',category:'other',description:'Qaysi yordam kerakligini aniqlash',consent:true}});
  const id=created.data.case.id;
  assert.equal((await call('/auth/options',{cookie})).data.clarificationEnabled,true);
  const update=await call(`/cases/${id}`,{method:'PATCH',cookie,body:{category:'legal',preferredTime:'14:00 dan keyin',dueAt:'2027-01-01T10:00:00.000Z'}});
