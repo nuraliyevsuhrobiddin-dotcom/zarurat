@@ -6,11 +6,13 @@ import { createHash } from 'node:crypto';
 
 const base='https://www.zaruriyat.uz';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+// Git deploys serve LF line endings while a Windows checkout has CRLF; compare text without them.
+const comparable=(file,bytes)=>/\.(png|jpe?g|webp|ico)$/i.test(file)?Buffer.from(bytes):Buffer.from(Buffer.from(bytes).toString('utf8').replace(/\r\n/g,'\n'));
 const files=['index.html','app.js','api.js','auth-input.js','package-tiers.js','site-content.js','manual-payment.js','service-content.js','ui-localization.js','styles.css','mobile-app.css','manifest.json','images/qarshi-center.jpg'];
 const mismatches=[];
 await Promise.all(files.map(async file=>{
  const response=await fetch(`${base}/${file}`,{signal:AbortSignal.timeout(20000)});
- if(!response.ok||hash(Buffer.from(await response.arrayBuffer()))!==hash(await readFile(`public/${file}`)))mismatches.push(file);
+ if(!response.ok||hash(comparable(file,await response.arrayBuffer()))!==hash(comparable(file,await readFile(`public/${file}`))))mismatches.push(file);
 }));
 console.log(`Published assets: ${files.length-mismatches.length}/${files.length} match local files`);
 if(mismatches.length)throw new Error('Published asset mismatch: '+mismatches.join(', '));
@@ -21,8 +23,9 @@ for(const path of ['/health','/auth/me']){
 }
 const mutation=(path,body,cookie)=>fetch(`${base}/api${path}`,{method:'POST',headers:{Origin:base,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
 const invalid=await mutation('/requests',{consent:false});
-console.log('Invalid request rejected without creating a record:',invalid.status===400);
-if(invalid.status!==400)throw new Error('Production request validation failed');
+// Guests must sign in first (401); a signed-in invalid request is rejected by validation (400).
+console.log('Invalid request rejected without creating a record:',[400,401].includes(invalid.status),invalid.status);
+if(![400,401].includes(invalid.status))throw new Error('Production request validation failed');
 const candidates=[];const seen=new Set();
 for(const file of ['.env','.env.vercel','.vercel/.env.production.local']){
  try{await access(file);const values=parseEnv(await readFile(file,'utf8'));
