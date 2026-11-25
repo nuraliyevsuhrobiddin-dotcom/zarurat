@@ -83,7 +83,7 @@ test('subscription gate exposes real tariffs and preserves the request page by o
  for(const script of ['lat','cyr']){
   const html=requestAccessNotice(script);
   for(const name of ['STANDARD','COMFORT','PREMIUM'])assert.ok(html.includes('#checkout?package='+name));
-  assert.equal((html.match(/target="_blank"/g)||[]).length,4);assert.ok(html.includes('99 000'));assert.ok(requestAccessPolicy(script));
+  assert.equal((html.match(/target="_blank"/g)||[]).length,3);assert.doesNotMatch(html,/href="#login"/);assert.ok(html.includes('99 000'));assert.ok(requestAccessPolicy(script));
   assert.doesNotMatch(html,/data-action="buy-package"|<form/);
  }
 });
