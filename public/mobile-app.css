@@ -1148,3 +1148,12 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:none}
 .payment-qr img{display:block;width:min(260px,100%);height:auto;aspect-ratio:1}
 .payment-qr-merchant{margin:0;font-size:.92rem;color:#4a5568}
 .manual-payment .payment-qr .btn{margin-top:2px}
+
+/* Partner the coordinator arranged by phone, and the buttons that record it. */
+.partner-call-actions{display:flex;flex-wrap:wrap;gap:8px}
+.arranged-partners{margin:10px 0 8px}
+.arranged-partners>p{margin:0 0 6px}
+.arranged-partners ul{list-style:none;display:grid;gap:6px;margin:0;padding:0}
+.arranged-partners li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid #b9e2c8;border-radius:10px;background:#effaf3;overflow-wrap:anywhere}
+.partner-picker{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.partner-picker select{flex:1 1 220px;min-width:0}

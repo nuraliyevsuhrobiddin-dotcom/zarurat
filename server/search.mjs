@@ -3,9 +3,15 @@ import { publicConfig } from '../public/supabase-api.js';
 
 export function caseFilters(url,user,now=new Date()) {
   const params=url.searchParams;
-  const filters={select:'*,coordinator:users!cases_coordinator_id_fkey(name,role),services(*,partners(name))',order:'id.desc',limit:51,offset:integer(params.get('offset')||0,'Sahifa',0)};
+  const filters={select:'*,coordinator:users!cases_coordinator_id_fkey(name,role),services(*,partners(name,phone))',order:'id.desc',limit:51,offset:integer(params.get('offset')||0,'Sahifa',0)};
   if(user.role==='client')filters.client_id=`eq.${user.id}`;
   if(['director','operator'].includes(user.role)&&params.has('clientId'))filters.client_id=`eq.${integer(params.get('clientId'),'Mijoz')}`;
+  if(['director','operator'].includes(user.role)&&params.has('partnerId')){
+    // Requests arranged with one partner: the inner embed drops requests without a match.
+    filters.select=filters.select.replace('services(*','services!inner(*');
+    filters['services.partner_id']=`eq.${integer(params.get('partnerId'),'Hamkor')}`;
+    filters['services.status']='neq.cancelled';
+  }
   if(['director','operator'].includes(user.role)&&params.get('assignee')){
     const assignee=choice(params.get('assignee'),['me','unassigned'],'Mas’ul xodim');
     filters.coordinator_id=assignee==='me'?`eq.${user.id}`:'is.null';

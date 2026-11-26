@@ -23,10 +23,10 @@ export function testDatabase(pg) { return async function db(resource,{method='GE
    const negative=value.startsWith('not.');const items=value.slice(negative?8:4,-1).split(',');
    return `${key} ${negative?'NOT IN':'IN'} (${items.map(v=>{values.push(v);return '$'+values.length;}).join(',')})`;
   }
-  const dot=value.indexOf('.'),op=value.slice(0,dot);assert.ok(['eq','gt','lt','lte','ilike','is'].includes(op));let input=value.slice(dot+1);
+  const dot=value.indexOf('.'),op=value.slice(0,dot);assert.ok(['eq','neq','gt','lt','lte','ilike','is'].includes(op));let input=value.slice(dot+1);
   if(op==='is'){assert.equal(input,'null');return `${key} IS NULL`;}
   if(op==='ilike'){if(input.startsWith('"'))input=JSON.parse(input);input=input.replaceAll('*','%');}
-  values.push(input);return `${key} ${{eq:'=',gt:'>',lt:'<',lte:'<=',ilike:'ILIKE'}[op]} $${values.length}`;
+  values.push(input);return `${key} ${{eq:'=',neq:'<>',gt:'>',lt:'<',lte:'<=',ilike:'ILIKE'}[op]} $${values.length}`;
  };
  for(const [key,value]of params){
   if(['select','order','limit','offset'].includes(key))continue;
@@ -58,8 +58,12 @@ export function testDatabase(pg) { return async function db(resource,{method='GE
  if(resource==='cases')for(const c of rows){
   c.coordinator=(await pg.query('SELECT name,role FROM users WHERE id=$1',[c.coordinator_id])).rows[0];
   c.services=(await pg.query('SELECT * FROM services WHERE case_id=$1',[c.id])).rows;
-  if(serviceConditions.length)c.services=c.services.filter(s=>['partner_id','status'].every(key=>!params.has('services.'+key)||String(s[key])===params.get('services.'+key).slice(3)));
-  for(const s of c.services)s.partners=(await pg.query('SELECT name FROM partners WHERE id=$1',[s.partner_id])).rows[0];
+  if(serviceConditions.length)c.services=c.services.filter(s=>['partner_id','status'].every(key=>{
+   if(!params.has('services.'+key))return true;
+   const filter=params.get('services.'+key);
+   return filter.startsWith('neq.')?String(s[key])!==filter.slice(4):String(s[key])===filter.slice(3);
+  }));
+  for(const s of c.services)s.partners=(await pg.query('SELECT name,phone FROM partners WHERE id=$1',[s.partner_id])).rows[0];
   c.history=(await pg.query('SELECT * FROM history WHERE case_id=$1',[c.id])).rows;
   c.attachments=(await pg.query('SELECT id,name,type,size FROM attachments WHERE case_id=$1',[c.id])).rows;
   c.feedback=(await pg.query('SELECT * FROM feedback WHERE case_id=$1',[c.id])).rows[0]||null;

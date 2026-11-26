@@ -3,6 +3,7 @@ import {enrichSubscriptions,rows,subscriptionCounts} from './subscription-summar
 import {requireUnusedBenefit} from './benefit-usage.mjs';
 import {leadSource,recordLeadSource,alertStaffNewRequest} from './staff-alerts.mjs';
 import {normalizeTrackingKey,shortenTrackingKey} from './tracking-key.mjs';
+import {arrangePartner,removeArrangedPartner,partnerCaseCounts} from './case-partners.mjs';
 import { createDatabase, HttpError, query } from './db.mjs';
 import { digest, sessionCookie, currentUser, createSession, hashPassword, requireRole, validateOrigin, rateLimit } from './security.mjs';
 import { compare } from 'bcryptjs';
@@ -24,7 +25,7 @@ const staff = ['director', 'operator'];
 const terminal = status => ['completed', 'cancelled'].includes(status);
 const profile = u => ({ id: u.id, name: u.name, phone: u.phone, login: u.login, role: u.role, blocked: Boolean(u.blocked_at), phoneVerified: Boolean(u.phone_verified_at), telegramConnected: Boolean(u.telegram_chat_id) });
 const selectUsers = 'id,name,phone,login,role,partner_id';
-const caseSelect = '*,coordinator:users!cases_coordinator_id_fkey(name,role),services(*,partners(name)),history(*),attachments(id,name,type,size),feedback(*)';
+const caseSelect = '*,coordinator:users!cases_coordinator_id_fkey(name,role),services(*,partners(name,phone)),history(*),attachments(id,name,type,size),feedback(*)';
 
 export function formatCase(c, user) {
   const isStaff = staff.includes(user?.role);
@@ -35,10 +36,11 @@ export function formatCase(c, user) {
     coordinatorName: c.coordinator?.name || null, coordinatorRole: c.coordinator?.role || null, dueAt: c.due_at,
     createdAt: c.created_at, updatedAt: c.updated_at, clientId: c.client_id,
     ...(user?.role === 'client' && user.id === c.client_id ? { trackingToken: c.tracking_token } : {}),
-    services: (c.services || []).map(s => ({
+    // Which partner the coordinator arranged is internal: customers never receive it.
+    services: isStaff ? (c.services || []).map(s => ({
       id: s.id, caseId: s.case_id, title: s.title, partnerId: s.partner_id,
-      partnerName: s.partners?.name, status: s.status, price: s.price
-    })),
+      partnerName: s.partners?.name, partnerPhone: s.partners?.phone, status: s.status, price: s.price, createdAt: s.created_at
+    })) : [],
     history: (c.history || []).filter(h => isStaff || h.kind === 'status').sort((a,b) => a.id-b.id).map(h => ({
       id: h.id, kind: h.kind, message: h.message, actorName: h.actor_name, createdAt: h.created_at
     })),
@@ -203,6 +205,7 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
         const caseMatch = path.match(/^\/cases\/(\d+)$/);
         const fileMatch = path.match(/^\/files\/(\d+)$/);
         const packageUse = path.match(/^\/packages\/(\d+)\/use$/);
+        const casePartner = path.match(/^\/cases\/(\d+)\/partners(?:\/(\d+)\/remove)?$/);
 
         if (path === '/cases' && method === 'GET') {
           const filters=caseFilters(url,user);
@@ -227,9 +230,19 @@ export function createHandler({ db = createDatabase(), env = process.env } = {})
           if (body.note) changes.note = text(body.note,'Izoh',1,2000);
           await rpc('zar_update_case', { p_id: integer(caseMatch[1],'ID'), p_changes: changes, p_actor_id: user.id });
           result = { case: formatCase(await getCase(db,Number(caseMatch[1]),user),user) };
+        } else if (casePartner && method === 'POST') {
+          // Record (or remove) the partner the coordinator arranged by phone.
+          requireRole(user,staff);
+          const caseId = integer(casePartner[1],'ID');
+          if (casePartner[2]) await removeArrangedPartner(db,user,caseId,integer(casePartner[2],'ID'));
+          else await arrangePartner(db,user,caseId,body);
+          result = { case: formatCase(await getCase(db,caseId,user),user) };
         } else if (path === '/partners') {
           requireRole(user,staff);
-          if (method === 'GET') result = { partners: (await rows(db,'partners',{order:'id.desc'})).map(p=>({...p,contractStatus:p.contract_status})) };
+          if (method === 'GET') {
+            const [list,counts] = await Promise.all([rows(db,'partners',{order:'id.desc'}),partnerCaseCounts(db)]);
+            result = { partners: list.map(p=>({...p,contractStatus:p.contract_status,caseCount:counts[p.id]||0})) };
+          }
           else if (method === 'POST') {
             const row = partnerInput(body);
             result = { partner: (await db('partners',{method:'POST',body:row}))[0] };

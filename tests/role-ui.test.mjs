@@ -47,11 +47,21 @@ test('coordinator works by phone: call, matching partner phones, note and close 
  assert.doesNotMatch(html,/service-add-form|service-update-form|name="partnerId"|Hamkorni biriktirish/);
  assert.match(html,/INTERNAL TIMELINE/);assert.match(html,/Mijoz bahosi/);assert.doesNotMatch(html,/feedback-form/);
 });
-test('coordinator sees a called request as talked to and old partner services only as read-only history',()=>{
- const {html}=render('operator',{services:[{id:4,title:'Old consultation',status:'accepted',partnerName:'Partner'}]});
+test('coordinator records the partner arranged by phone and can remove it',()=>{
+ const fresh=render('operator').html;
+ assert.match(fresh,/data-action="case-partner" data-id="1" data-partner="1"/);
+ // Partners outside the request category are offered in a list; expired ones never.
+ assert.match(fresh,/class="partner-picker"/);assert.match(fresh,/data-action="case-partner-pick" data-id="1"/);
+ assert.doesNotMatch(fresh,/arranged-partners/);
+ const {html}=render('operator',{services:[{id:4,title:'Telefon orqali kelishildi',status:'accepted',partnerId:1,partnerName:'Legal partner',partnerPhone:'+998905555555'},{id:5,title:'Old',status:'cancelled',partnerId:2,partnerName:'Doctor'}]});
  assert.match(html,/Gaplashilgan/);assert.doesNotMatch(html,/data-action="case-contact"/);
- assert.match(html,/Avvalgi xizmat yozuvlari · 1/);assert.match(html,/Old consultation/);assert.match(html,/SERVICE:accepted/);
+ assert.match(html,/Kelishilgan hamkor/);assert.match(html,/<b>Legal partner<\/b> <a href="tel:\+998905555555"/);
+ assert.match(html,/data-action="case-partner-remove" data-id="1" data-service="4"/);
+ // The arranged partner is not offered again; a removed one is offered again.
+ assert.doesNotMatch(html,/data-partner="1"/);assert.doesNotMatch(html,/data-service="5"/);
  assert.doesNotMatch(html,/<form class="service-update-form"|<select name="partnerId"/);
+ const closed=render('operator',{status:'completed',services:[{id:4,status:'completed',partnerId:1,partnerName:'Legal partner'}]}).html;
+ assert.match(closed,/Kelishilgan hamkor/);assert.doesNotMatch(closed,/case-partner/);
 });
 test('closed requests and customers get no coordinator controls',()=>{
  const closed=render('operator',{status:'completed'}).html;
