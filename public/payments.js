@@ -1,6 +1,6 @@
 import {subscriptionSummary} from './subscription-summary.js?v=2';
 import {activeSubscription,displayDate} from './payment-state.js';
-import {paymentMethodLabel} from './manual-payment.js?v=1';
+import {paymentMethodLabel} from './manual-payment.js?v=2';
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const paymentMoney=amount=>String(Math.round(Number(amount)/100)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 export function paymentPanel(data,script='lat',clients=[],staff=false,director=false){

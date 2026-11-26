@@ -90,7 +90,9 @@ test('webhook offers a working menu, category choices, validation, creation and 
   await hook('☎️ Aloqa');assert.match(messages.at(-1).text,/\+998 55 406 77 55/);
   assert.ok(messages.at(-1).reply_markup.inline_keyboard.flat().some(b=>b.url===env.PUBLIC_ORIGIN+'/#recovery'));
   await hook('🌐 Shaxsiy kabinet');assert.match(messages.at(-1).text,/ZARURIYAT CENTER/);
-  await hook('💳 Tariflar');assert.match(messages.at(-1).text,/STANDARD — 99 000/);assert.match(messages.at(-1).text,/Click, Uzum/);
+  // Tariffs come with the bank QR code as a photo the customer can save to the gallery.
+  await hook('💳 Tariflar');assert.match(messages.at(-1).caption,/STANDARD — 99 000/);assert.match(messages.at(-1).caption,/shu QR-kod orqali/);
+  assert.equal(messages.at(-1).photo,env.PUBLIC_ORIGIN+'/images/payment-qr.png');assert.ok(messages.at(-1).caption.length<=1024);
   await hook('/new');assert.ok(messages.at(-1).reply_markup.keyboard.some(row=>row[0].text==='❌ Bekor qilish'));
   const categoryButton=messages.at(-1).reply_markup.keyboard.flat().find(b=>b.text.startsWith('⚖️'));
   await hook(categoryButton.text);assert.match(messages.at(-1).text,/kamida 10 belgi/);
@@ -229,7 +231,7 @@ test('bot requires channel membership; the check button opens the menu and failu
   await check();
   assert.ok(calls.some(c=>c.method==='editMessageText'&&/a’zo bo‘ldingiz/.test(c.body.text)));
   assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/Asosiy menyu/);
-  await message('💳 Tariflar');assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/Oila obunasi/);
+  await message('💳 Tariflar');assert.match(calls.filter(c=>c.method==='sendPhoto').at(-1).body.caption,/Oila obunasi/);
   status='restricted';await message('/start');assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/kanaliga a’zo/);
   broken=true;await message('/start');assert.match(calls.filter(c=>c.method==='sendMessage').at(-1).body.text,/Asosiy menyu/);
   const count=calls.length;await check('other');await check('check_channel',-100);assert.equal(calls.length,count);
@@ -264,5 +266,21 @@ test('a bot request alerts linked staff once, records its source and ad links op
   // Staff who linked Telegram get alert guidance instead of the client menu.
   await send(333,{text:'/start'});
   assert.match(messages.at(-1).text,/xodimi sifatida ulangansiz/);
+ }finally{globalThis.fetch=original;}
+});
+
+test('if Telegram cannot fetch the QR image, tariffs still arrive as text pointing to the site',async()=>{
+ const original=globalThis.fetch,calls=[];
+ globalThis.fetch=async(url,options)=>{
+  const method=url.split('/').pop();calls.push({method,body:JSON.parse(options.body)});
+  if(method==='sendPhoto')return {ok:false,status:400,json:async()=>({ok:false,error_code:400,description:'wrong file identifier/HTTP URL specified'})};
+  return {ok:true,json:async()=>({ok:true,result:{message_id:1}})};
+ };
+ try{
+  await handleTelegramWebhook({headers:{'x-telegram-bot-api-secret-token':'test'}},{message:{message_id:++id,chat:{id:111,type:'private'},from:{id:111},text:'💳 Tariflar'}},db,env);
+  assert.deepEqual(calls.map(c=>c.method),['sendPhoto','sendMessage']);
+  const text=calls[1].body.text;
+  assert.match(text,/Oila obunasi/);assert.match(text,/QR-kod saytdagi tarif oynasida/);assert.match(text,/\+998 55 406 77 55/);
+  assert.equal(calls[1].body.reply_markup.inline_keyboard[0][0].url,env.PUBLIC_ORIGIN+'/#family');
  }finally{globalThis.fetch=original;}
 });

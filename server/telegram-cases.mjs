@@ -54,9 +54,27 @@ const texts={
 function servicesText(){
  return '🗂 ZARURIYAT · Xizmatlar\n\n'+publicConfig.categories.map(categoryLabel).join('\n')+'\n\nNarx va vaqt koordinator bilan oldindan kelishiladi.\nMurojaat yuborish uchun «📝 Murojaat yuborish» tugmasini bosing.';
 }
-function tariffsText(){
+// How to pay outside the site's card checkout. 'photo': the bank QR code is attached to this
+// message; 'site': it could not be attached, so point to the site; otherwise the bank account.
+function paymentLines(qr){
+ const call=`keyin koordinatorga qo‘ng‘iroq qiling, obunani u yoqadi: ${siteContent.phone}`;
+ if(qr==='photo')return `To‘lash:\n• saytda istalgan Uzcard/Humo karta bilan;\n• shu QR-kod orqali: rasmni saqlang, bank ilovangizdagi QR skanerda galereyadan tanlang, summani yozib tasdiqlang — ${call}`;
+ if(qr==='site')return `To‘lash:\n• saytda istalgan Uzcard/Humo karta bilan;\n• bank ilovasida QR-kod orqali (QR-kod saytdagi tarif oynasida) — ${call}`;
+ return `To‘lash:\n• saytda istalgan Uzcard/Humo karta bilan;\n• Click, Uzum yoki bank ilovasidan markaz hisob raqamiga — ${call}`;
+}
+// The QR code goes out as a photo: saved to the gallery, a bank app's QR scanner opens it.
+// If Telegram cannot fetch the image, the same message goes out as text.
+async function sendWithQr(chat,textFor,reply_markup,origin,env){
+ const image=String(siteContent.paymentQr?.image||'').trim();
+ if(image){
+  const caption=textFor('photo');
+  if(caption.length<=1024){try{return await telegram('sendPhoto',{chat_id:chat,photo:origin+image,caption,reply_markup},env);}catch{/* text below */}}
+ }
+ return telegram('sendMessage',{chat_id:chat,text:textFor(image?'site':''),reply_markup},env);
+}
+function tariffsText(qr){
  const lines=packageTiers.map(t=>`⭐ ${t.name} — ${money(t.monthlyPrice)} so‘m / oy\n   👨‍👩‍👧 ${t.familyMembers} kishigacha · oyiga ${t.legalConsultations} huquqiy, ${t.psychologicalConsultations} psixolog${t.businessConsultations?`, ${t.businessConsultations} tadbirkorlik`:''} maslahati`);
- return `💳 Oila obunasi\n\n${lines.join('\n\n')}\n\n🎁 Har bir raqamga birinchi murojaat bepul. Keyingilari uchun faol obuna kerak.\n\nTo‘lash:\n• saytda istalgan Uzcard/Humo karta bilan;\n• Click, Uzum yoki bank ilovasidan markaz hisob raqamiga — keyin koordinatorga qo‘ng‘iroq qiling, obunani u yoqadi.`;
+ return `💳 Oila obunasi\n\n${lines.join('\n\n')}\n\n🎁 Har bir raqamga birinchi murojaat bepul. Keyingilari uchun faol obuna kerak.\n\n${paymentLines(qr)}`;
 }
 function contactText(){
  return `☎️ ZARURIYAT CENTER\n\n📞 ${siteContent.phone}\n📍 ${siteContent.address.lat}\n🕐 Murojaat qabul qilish: ${siteContent.hours.lat}\n\nKoordinator murojaatingiz bo‘yicha o‘zi qo‘ng‘iroq qiladi. Shoshilinch bo‘lsa, yuqoridagi raqamga qo‘ng‘iroq qiling.`;
@@ -89,7 +107,7 @@ export async function handleTelegramCases(m,db,env){
  if(!await channelMember(m.from?.id,env)){const prompt=channelPrompt(env);await send(prompt.text,prompt.reply_markup);return true;}
  const rpc=(name,body)=>db(`rpc/${name}`,{method:'POST',body});
  if(['/services',B.services].includes(text)){await send(servicesText());return true;}
- if(['/tariffs','/tarif',B.tariffs].includes(text)){await send(tariffsText(),{inline_keyboard:[[{text:'💳 Tarifni tanlash',url:origin+'/#family'}]]});return true;}
+ if(['/tariffs','/tarif',B.tariffs].includes(text)){await sendWithQr(m.chat.id,tariffsText,{inline_keyboard:[[{text:'💳 Tarifni tanlash',url:origin+'/#family'}]]},origin,env);return true;}
  // Older keyboards may still show the removed help and cabinet buttons.
  if(['/contact','/help',B.contact,'❓ Yordam','🌐 Shaxsiy kabinet'].includes(text)){await send(contactText(),contactButtons(origin));return true;}
  if(!Number.isSafeInteger(m.message_id)||m.message_id<=0)return false;
@@ -145,7 +163,7 @@ export async function handleTelegramCases(m,db,env){
  else if(state==='already_rated')await send('Bu murojaat uchun baho oldin saqlangan.');
  else if(state==='rating_unavailable')await send('Faqat o‘z hisobingizdagi yakunlangan murojaatni baholash mumkin.');
  else if(state==='missing')await send('Murojaat topilmadi yoki hisobingizga tegishli emas. «📋 Murojaatlarim» orqali o‘z murojaatlaringizni ko‘ring.');
- else if(state==='subscription_required')await send(`💳 Bu raqam uchun birinchi bepul murojaat ishlatilgan. Keyingi murojaat uchun faol obuna kerak.\n\nMurojaatingiz saqlab qo‘yildi. Obuna yoqilgach «${B.submit}» tugmasini qayta bosing.\n\nTo‘lash: saytda karta bilan yoki Click/Uzum orqali markaz hisob raqamiga, keyin koordinatorga qo‘ng‘iroq qiling: ${siteContent.phone}`,{inline_keyboard:[[{text:'💳 Tariflar',url:origin+'/#family'}],[{text:'🔑 Saytga kirish uchun parol',url:origin+'/#recovery'}]]});
+ else if(state==='subscription_required')await sendWithQr(m.chat.id,qr=>`💳 Bu raqam uchun birinchi bepul murojaat ishlatilgan. Keyingi murojaat uchun faol obuna kerak.\n\nMurojaatingiz saqlab qo‘yildi. Obuna yoqilgach «${B.submit}» tugmasini qayta bosing.\n\n${paymentLines(qr)}`,{inline_keyboard:[[{text:'💳 Tariflar',url:origin+'/#family'}],[{text:'🔑 Saytga kirish uchun parol',url:origin+'/#recovery'}]]},origin,env);
  else if(state==='limited')await send('Bir soatda 5 tagacha murojaat yuborish mumkin. Keyinroq qayta urinib ko‘ring.',cancel);
  else if(state==='expired')await send('⏳ Qoralama muddati tugadi. «📝 Murojaat yuborish» orqali qayta boshlang.');
  else await send(texts.menu);

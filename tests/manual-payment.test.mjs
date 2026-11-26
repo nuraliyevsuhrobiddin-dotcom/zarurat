@@ -95,6 +95,22 @@ test('checkout explains card payment and other apps; bank details show only when
  assert.equal(paymentMethodLabel('cash'),'Naqd (markaz kassasi)');assert.equal(paymentMethodLabel(undefined),'Payme');
 });
 
+test('checkout shows the bank QR code, a gallery save link and the amount to type',async()=>{
+ const {siteContent}=await import('../public/site-content.js');
+ const qr=siteContent.paymentQr;
+ assert.equal(qr.merchant,'ZARURIYAT CENTER MCHJ');
+ assert.ok((await readFile('public'+qr.image)).subarray(1,4).equals(Buffer.from('PNG')),'QR image must be a PNG in public/');
+ const html=manualPaymentInfo({price:'199 000',tier:'COMFORT',qr,phone:'+998 55 406 77 55'});
+ assert.match(html,/<summary>QR-kod orqali to‘lash/);assert.match(html,/<img src="\/images\/payment-qr\.png"/);
+ assert.match(html,/href="\/images\/payment-qr\.png" download="zaruriyat-tolov-qr\.png"/);assert.match(html,/galereyadan/);
+ assert.match(html,/Summaga 199 000 so‘m yozing/);assert.match(html,/«ZARURIYAT CENTER MCHJ»/);assert.match(html,/«COMFORT» tarifini/);
+ assert.match(html,/href="tel:\+998554067755"/);assert.doesNotMatch(html,/koordinatordan so‘rang|To‘lov izohiga/);
+ assert.match(manualPaymentInfo({price:'1',tier:'STANDARD',qr,script:'cyr'}),/QR-код орқали тўлаш/);
+ const hostile=manualPaymentInfo({price:'1',tier:'STANDARD',qr:{image:'/x.png"><script>',merchant:'<b>x</b>'}});
+ assert.doesNotMatch(hostile,/<script>|<b>x/);
+ assert.doesNotMatch(manualPaymentInfo({price:'1',tier:'STANDARD',qr:{image:' '}}),/payment-qr/);
+});
+
 test('payment history labels the method and offers undo only to the director for manual payments',()=>{
  const payments=[{id:'00000000-0000-4000-8000-000000000001',client_id:3,tier:'COMFORT',amount:19900000,status:'paid',mode:'live',method:'bank',reference:'Click 448812',created_at:new Date().toISOString()},{id:'00000000-0000-4000-8000-000000000002',client_id:3,tier:'STANDARD',amount:9900000,status:'paid',mode:'live',method:'payme',created_at:new Date().toISOString()}];
  const client=paymentPanel({payments,subscriptions:[]},'lat');
